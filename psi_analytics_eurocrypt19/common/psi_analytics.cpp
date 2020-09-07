@@ -63,11 +63,41 @@ uint64_t run_psi_analytics(const std::vector<std::uint64_t> &inputs, PsiAnalytic
   std::vector<uint64_t> bins;
   if (context.role == CLIENT) {
     bins = OpprgPsiClient(inputs, context);
+    // ------------------------ kkrt part ----------------------
+    std::vector<uint64_t> bins2;
+    bins2 = ot_receiver(bins, context);
+     
+    for (auto i = 0ull; i < bins2.size(); ++i) {
+      std::cout << "client side: output of oprf - 1 " << bins[i] << std::endl;
+      std::cout << "client side: output of oprf - 2 " << bins2[i] << std::endl;
+    }
+    //-----------------------------kkrt --------------------------
   } else {
     bins = OpprgPsiServer(inputs, context);
+    //-------------------kkrt part ---------------------------
+    std::vector<std::vector<std::uint64_t>> bins2; 
+    std::vector<std::vector<std::uint64_t>> bins_input; 
+    std::vector<std::uint64_t> temp; 
+    for (auto i = 0ull; i < bins.size(); ++i) { 
+        temp.push_back(bins[i]);
+        bins_input.push_back(temp);
+        temp.erase(temp.begin(), temp.end());
+    }
+    bins2 = ot_sender(bins_input, context);
+    
+    for (auto i = 0ull; i < bins2.size(); ++i) {
+    std::cout << "server side position i = " << i <<  "size" <<  bins2.at(i).size() << std::endl;
+      for (auto j = 0ull; j < bins2.at(i).size(); ++j) {
+        std::cout << "server side: output of oprf - 1 " << bins[i] << std::endl; 
+        std::cout << "server side: output of oprf - 2 " << i << j << " value " << bins2.at(i).at(j) <<  std::endl; 
+        
+      }
+    }
+    // -------------------kkrt end -------------------------------- 
+   
   }
 
-  // instantiate ABY
+  /* instantiate ABY
   ABYParty party(static_cast<e_role>(context.role), context.address, context.port, LT, 64,
                  context.nthreads);
   party.ConnectAndBaseOTs();
@@ -135,11 +165,12 @@ uint64_t run_psi_analytics(const std::vector<std::uint64_t> &inputs, PsiAnalytic
   context.timings.aby_online = party.GetTiming(P_ONLINE);
   context.timings.aby_total = context.timings.aby_setup + context.timings.aby_online;
   context.timings.base_ots_aby = party.GetTiming(P_BASE_OT);
-
+*/
   const auto clock_time_total_end = std::chrono::system_clock::now();
   const duration_millis clock_time_total_duration = clock_time_total_end - clock_time_total_start;
   context.timings.total = clock_time_total_duration.count();
 
+  uint64_t output = 0; 
   return output;
 }
 
@@ -390,15 +421,15 @@ void PrintTimings(const PsiAnalyticsContext &context) {
             << context.timings.polynomials_transmission << " ms\n";
 //  std::cout << "Time for OPPRF " << context.timings.opprf << " ms\n";
 
-  std::cout << "ABY timings: online time " << context.timings.aby_online << " ms, setup time "
+ /* std::cout << "ABY timings: online time " << context.timings.aby_online << " ms, setup time "
             << context.timings.aby_setup << " ms, total time " << context.timings.aby_total
             << " ms\n";
-
+*/
   std::cout << "Total runtime: " << context.timings.total << "ms\n";
-  std::cout << "Total runtime w/o base OTs: "
+ /* std::cout << "Total runtime w/o base OTs: "
             << context.timings.total - context.timings.base_ots_aby -
                    context.timings.base_ots_libote
-            << "ms\n";
+            << "ms\n";*/
 }
 
 }
