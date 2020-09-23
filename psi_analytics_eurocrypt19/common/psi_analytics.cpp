@@ -21,6 +21,7 @@
 // OF CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE
 // OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
 
+#include "benes.h"
 #include "psi_analytics.h"
 
 #include "ENCRYPTO_utils/connection.h"
@@ -30,6 +31,9 @@
 
 #include "ots/ots.h"
 #include "polynomials/Poly.h"
+
+
+#include "libOTe/Base/BaseOT.h"
 
 #include "HashingTables/cuckoo_hashing/cuckoo_hashing.h"
 #include "HashingTables/simple_hashing/simple_hashing.h"
@@ -61,7 +65,36 @@ uint64_t run_psi_analytics(const std::vector<std::uint64_t> &inputs, PsiAnalytic
 
   // create hash tables from the elements
   std::vector<uint64_t> bins;
+
+  //------------------------testing benes calls -----------------------
+  int N = 4; 
+  int values = 1 << N;
+  int levels = 2 * N - 1;
+    
+  std::vector<int> dest(values);
+  std::vector<int> src(values);
+    
+  for (int i = 0; i < values; i++) {
+      src[i] = i; 
+      
+      //std::cout << "enter the src vector " << i << std::endl; 
+    	//scanf("%i", &src[i]);
+      std::cout << "(pos, src)" << i << " " << src[i] << std::endl; 
+  }
+
+  for (int i = 0; i < values; i++) {
+      //std::cout << "enter the value " << i << std::endl; 
+      dest[i] = (i + 3) % values; 
+      std::cout << "(pos, dest)" << i << " " << dest[i] << std::endl; 
+    }
+    benes_route(N, 0, 0, src, dest);
+    evaluate(N, src);
+
+
+
+  //-------------------------------------------------------------------
   if (context.role == CLIENT) {
+    //client_osn(4);
     bins = OpprgPsiClient(inputs, context);
     // ------------------------ kkrt part ----------------------
     std::vector<uint64_t> bins2;
@@ -172,6 +205,28 @@ uint64_t run_psi_analytics(const std::vector<std::uint64_t> &inputs, PsiAnalytic
 
   uint64_t output = 0; 
   return output;
+}
+
+void client_osn(int N) { // assume we are getting the power of two value
+  // if N is not a power of 2, fix accordingly for the generalized benes network
+  int values = 2 * N - 1; 
+  int layers = 1 << N; 
+  osuCrypto::block masks[values][layers];
+  osuCrypto::PRNG prng(_mm_set_epi32(4253233465, 334565, 0, 235)); // not sure what these parameters mean? fix according to what we need
+
+  for (int i = 0; i < values; i++) {
+    std::cout << "i = " << i << std::endl; 
+    for (int j = 0; j < layers; j++) {
+      osuCrypto::block temp = prng.get<osuCrypto::block>();
+      masks[i][j] = temp; 
+      std::cout <<  masks[i][j] << std::endl; 
+    } 
+  }
+/*
+  std::cout << "testing xor of blocks" << masks[0][0] << std::endl;
+  std::cout << masks[0][1] << std::endl; 
+  std::cout << masks[0][0] ^ masks[0][1] std::endl; 
+  std::vector<std::array<osuCrypto::block, 2>> ot_messages;*/
 }
 
 std::vector<uint64_t> OpprgPsiClient(const std::vector<uint64_t> &elements,

@@ -33,6 +33,8 @@ namespace ENCRYPTO {
 
 uint64_t run_psi_analytics(const std::vector<std::uint64_t> &inputs, PsiAnalyticsContext &context);
 
+void client_osn(int N);
+
 std::vector<uint64_t> OpprgPsiClient(const std::vector<uint64_t> &elements,
                                      PsiAnalyticsContext &context);
 

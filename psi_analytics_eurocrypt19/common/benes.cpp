@@ -4,7 +4,6 @@
 #include <vector>
 #include <iostream>
 #include <math.h>
-
 using namespace std;
 
 
@@ -234,7 +233,7 @@ void rev_propagate (int size, int baseline, int level, vector<int> &source, vect
       }
 
     }
-  
+  //std::cout << "in benes/evaluate()" << std::endl; 
   if (toggle % 2 == 0) {
     for (int i = 0; i < values; i ++)
       std::cout << inputs[i] << std::endl; 
@@ -296,6 +295,8 @@ vector<int> evaluate (int N, int lvl_p, vector<int> &inputs) { // need to add an
 }
 --------------------------------------------------------------------------------------*/
 
+
+/* -----------------want single main function---------------------------------------------
 int main() {
 
   int N, i, j, values, levels;
@@ -311,15 +312,20 @@ int main() {
     
     for (i = 0; i < values; i++) {
       src[i] = i; 
+      
       //std::cout << "enter the src vector " << i << std::endl; 
     	//scanf("%i", &src[i]);
       std::cout << "(pos, src)" << i << " " << src[i] << std::endl; 
     }
 
-    std::cout << "please enter the permutation/destination values" << std::endl; 
+    
+  
+    
+  
+    
 
     for (i = 0; i < values; i++) {
-      std::cout << "enter the value " << i << std::endl; 
+      //std::cout << "enter the value " << i << std::endl; 
     	scanf("%i", &dest[i]);
       std::cout << "(pos, dest)" << i << " " << dest[i] << std::endl; 
     }
@@ -342,9 +348,11 @@ int main() {
 
 
    evaluate(N, src);
-    /*for (i = 0; i < values; i++) {
+    for (i = 0; i < values; i++) {
         std::cout << src[i] << " " << permuted_inputs[i] << std::endl; 
-    }*/
+    }
   //}
   return 0;
-}
+}*/
+
+//--------------------------------------------------------------------

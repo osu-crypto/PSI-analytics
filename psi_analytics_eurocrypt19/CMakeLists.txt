@@ -15,6 +15,7 @@ endif ()
 add_library(psi_analytics_eurocrypt19
         common/psi_analytics.cpp
         common/helpers.cpp
+        common/benes.cpp
         polynomials/Mersenne.cpp
         polynomials/Poly.cpp
         ots/ots.cpp
