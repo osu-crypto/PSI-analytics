@@ -32,13 +32,25 @@
 #include "libOTe/NChooseOne/Kkrt/KkrtNcoOtReceiver.h"
 #include "libOTe/NChooseOne/Kkrt/KkrtNcoOtSender.h"
 
+#include "libOTe/TwoChooseOne/IknpOtExtSender.h"
+#include "libOTe/TwoChooseOne/IknpOtExtReceiver.h"
+
 #include "common/constants.h"
 #include "common/psi_analytics_context.h"
+
+#include <thread>
+
 
 using milliseconds_ratio = std::ratio<1, 1000>;
 using duration_millis = std::chrono::duration<double, milliseconds_ratio>;
 
+using namespace osuCrypto;
+
+
 namespace ENCRYPTO {
+
+
+
 // Client
 std::vector<std::uint64_t> ot_receiver(const std::vector<std::uint64_t> &inputs,
                                        ENCRYPTO::PsiAnalyticsContext &context) {
@@ -178,5 +190,109 @@ std::vector<std::vector<std::uint64_t>> ot_sender(
   ios.stop();
   return outputs;
 }
+
+void ot_send(std::vector<std::array<osuCrypto::block, 2>> &messages, ENCRYPTO::PsiAnalyticsContext &context)  
+{
+    std::cout<<"\n OT sender here \n";
+    osuCrypto::IOService ios;
+    std::string name = "n";
+    osuCrypto::Session ep(ios, context.address, context.port + 1, osuCrypto::SessionMode::Client,
+                        name);
+    auto sendChl = ep.addChannel(name, name);
+
+    osuCrypto::PRNG prng1(_mm_set_epi32(4253233465, 334565, 0, 235));
+
+    osuCrypto::u64 numOTs = 150;
+
+    std::vector<osuCrypto::block> baseRecv(128);
+    osuCrypto::DefaultBaseOT baseOTs;
+    osuCrypto::BitVector baseChoice(128);
+    baseChoice.randomize(prng1);
+    osuCrypto::IknpOtExtSender sender;
+    baseOTs.receive(baseChoice, baseRecv, prng1, sendChl, 1);
+    sender.setBaseOts(baseRecv, baseChoice);
+
+    std::vector<std::array<osuCrypto::block, 2>> sendMsg(messages.size());
+    sender.send(sendMsg, prng1, sendChl);
+    /*
+    std::cout<<"\nBase OT\n";
+    for (int i=0; i < baseRecv.size(); ++i) {
+        std::cout<<*reinterpret_cast<uint64_t*>(&baseRecv[i])<<" "<<baseChoice[i]; 
+        std::cout<<std::endl;
+    }
+    */
+    for (u64 i = 0; i < static_cast<u64>(sendMsg.size()); ++i)
+    {
+        sendMsg[i][0] = sendMsg[i][0] ^ messages[i][0];
+        sendMsg[i][1] = sendMsg[i][1] ^ messages[i][1];
+        sendChl.send(std::move(sendMsg[i]));
+    }
+
+    
+
+    for (int i=0; i < 5; ++i) {
+      for (int j=0; j < 2; ++j) {
+        uint64_t temp = 10*i + j;
+        sendMsg[i][j] = osuCrypto::toBlock(temp);
+        std::cout<<*reinterpret_cast<uint64_t*>(&sendMsg[i][j])<<" "; 
+      }
+      std::cout<<std::endl;
+
+    }
+
+}
+
+void ot_recv(osuCrypto::BitVector &choices, std::vector<osuCrypto::block> &recvMsg, ENCRYPTO::PsiAnalyticsContext &context) 
+
+{
+  std::cout<<"\n Ot receiver!!\n";
+  std::string name = "n";
+  osuCrypto::IOService ios;
+  osuCrypto::Session ep(ios, context.address, context.port + 1, osuCrypto::SessionMode::Server,
+                        name);
+  auto recvChl = ep.addChannel(name, name);
+
+  //Channel recvChannel   = ep0.addChannel();
+
+  osuCrypto::PRNG prng0(_mm_set_epi32(4253465, 3434565, 234435, 23987045));
+
+  osuCrypto::u64 numOTs = choices.size(); // input.length();
+
+  std::vector<osuCrypto::block> baseRecv(128);
+  std::vector<std::array<osuCrypto::block, 2>> baseSend(128);
+  osuCrypto::BitVector baseChoice(128);
+
+  for (int i=0; i < choices.size();++i)
+    std::cout<<choices[i]<<" ";
+
+  prng0.get((osuCrypto::u8*)baseSend.data()->data(), sizeof(osuCrypto::block) * 2 * baseSend.size());
+  
+  osuCrypto::DefaultBaseOT baseOTs;
+  baseOTs.send(baseSend, prng0, recvChl, 1);
+
+  osuCrypto::IknpOtExtReceiver recv;
+  recv.setBaseOts(baseSend); 
+  recv.receive(choices, recvMsg, prng0, recvChl);
+
+  std::vector<std::array<osuCrypto::block, 2>> correction(numOTs);
+
+
+  //recvChl.recv(correction.data(), correction.size());
+
+  auto iter = choices.begin();
+  for (u64 i = 0; i < choices.size(); ++i)
+  {
+        recvChl.recv(correction[i].data(), 2);
+        recvMsg[i] = recvMsg[i] ^ correction[i][*iter];
+        ++iter;
+  }
+
+  for (int i=0; i < 5; ++i)  {
+    uint64_t output = *reinterpret_cast<uint64_t*>(&recvMsg[i]);
+    std::cout<<output <<std::endl;
+  }
+
+}
+
 
 }

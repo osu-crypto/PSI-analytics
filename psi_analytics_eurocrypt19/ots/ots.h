@@ -28,6 +28,18 @@
 #include <string>
 #include <vector>
 
+#include "cryptoTools/Network/Channel.h"
+#include "cryptoTools/Network/IOService.h"
+#include "cryptoTools/Network/Session.h"
+
+#include "libOTe/Base/BaseOT.h"
+#include "libOTe/NChooseOne/Kkrt/KkrtNcoOtReceiver.h"
+#include "libOTe/NChooseOne/Kkrt/KkrtNcoOtSender.h"
+
+#include "libOTe/TwoChooseOne/IknpOtExtSender.h"
+#include "libOTe/TwoChooseOne/IknpOtExtReceiver.h"
+
+
 #include "common/psi_analytics_context.h"
 #include "common/constants.h"
 
@@ -39,4 +51,13 @@ std::vector<std::uint64_t> ot_receiver(const std::vector<std::uint64_t>& inputs,
 std::vector<std::vector<std::uint64_t>> ot_sender(
     const std::vector<std::vector<std::uint64_t>>& inputs, ENCRYPTO::PsiAnalyticsContext& context);
 
+
+
+void ot_send(std::vector<std::array<osuCrypto::block, 2>> &sendMsg, ENCRYPTO::PsiAnalyticsContext &context); 
+
+void ot_recv(osuCrypto::BitVector &choices, std::vector<osuCrypto::block> &recvMsg, ENCRYPTO::PsiAnalyticsContext &context);
+
+
 }
+
+
