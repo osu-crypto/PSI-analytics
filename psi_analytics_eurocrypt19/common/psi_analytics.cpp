@@ -48,6 +48,9 @@
 #include <random>
 #include <ratio>
 #include <unordered_set>
+#include <vector>
+
+#include <bits/stdc++.h> 
 
 namespace ENCRYPTO {
 
@@ -66,7 +69,8 @@ uint64_t run_psi_analytics(const std::vector<std::uint64_t> &inputs, PsiAnalytic
   // create hash tables from the elements
   std::vector<uint64_t> bins;
 
-  //------------------------testing benes calls -----------------------
+  /*-----------------------testing benes calls -----------------------
+  // ----------------- it works -------------------------------------------
   int N = 4; 
   int values = 1 << N;
   int levels = 2 * N - 1;
@@ -92,18 +96,18 @@ uint64_t run_psi_analytics(const std::vector<std::uint64_t> &inputs, PsiAnalytic
 
 
 
-  //-------------------------------------------------------------------
+  //-------------------------------------------------------------------*/
   if (context.role == CLIENT) {
-    //client_osn(4);
+    client_osn(5);
     bins = OpprgPsiClient(inputs, context);
     // ------------------------ kkrt part ----------------------
     std::vector<uint64_t> bins2;
     bins2 = ot_receiver(bins, context);
      
-    for (auto i = 0ull; i < bins2.size(); ++i) {
-      std::cout << "client side: output of oprf - 1 " << bins[i] << std::endl;
-      std::cout << "client side: output of oprf - 2 " << bins2[i] << std::endl;
-    }
+    /*for (auto i = 0ull; i < bins2.size(); ++i) {
+        std::cout << "client side: output of oprf - 1 " << bins[i] << std::endl;
+        std::cout << "client side: output of oprf - 2 " << bins2[i] << std::endl;
+    }*/
     //-----------------------------kkrt --------------------------
   } else {
     bins = OpprgPsiServer(inputs, context);
@@ -118,14 +122,14 @@ uint64_t run_psi_analytics(const std::vector<std::uint64_t> &inputs, PsiAnalytic
     }
     bins2 = ot_sender(bins_input, context);
     
-    for (auto i = 0ull; i < bins2.size(); ++i) {
+    /*for (auto i = 0ull; i < bins2.size(); ++i) {
     std::cout << "server side position i = " << i <<  "size" <<  bins2.at(i).size() << std::endl;
       for (auto j = 0ull; j < bins2.at(i).size(); ++j) {
         std::cout << "server side: output of oprf - 1 " << bins[i] << std::endl; 
         std::cout << "server side: output of oprf - 2 " << i << j << " value " << bins2.at(i).at(j) <<  std::endl; 
         
       }
-    }
+    }*/
     // -------------------kkrt end -------------------------------- 
    
   }
@@ -207,26 +211,166 @@ uint64_t run_psi_analytics(const std::vector<std::uint64_t> &inputs, PsiAnalytic
   return output;
 }
 
-void client_osn(int N) { // assume we are getting the power of two value
+
+void client_osn (int N) { 
+  // assume we are getting the power of two value
   // if N is not a power of 2, fix accordingly for the generalized benes network
-  int values = 2 * N - 1; 
-  int layers = 1 << N; 
-  osuCrypto::block masks[values][layers];
+  int levels = 2 * N - 1; 
+  int values = 1 << N; 
+  int wires = levels + 1;  
+  uint64_t masks[values][wires]; // # of wire levels is one more than the # of switch levels
   osuCrypto::PRNG prng(_mm_set_epi32(4253233465, 334565, 0, 235)); // not sure what these parameters mean? fix according to what we need
 
-  for (int i = 0; i < values; i++) {
-    std::cout << "i = " << i << std::endl; 
-    for (int j = 0; j < layers; j++) {
-      osuCrypto::block temp = prng.get<osuCrypto::block>();
-      masks[i][j] = temp; 
-      std::cout <<  masks[i][j] << std::endl; 
+  for (int i = 0; i < wires; i++) {
+    //std::cout << "i = " << i << std::endl; 
+    for (int j = 0; j < values; j++) {
+      uint64_t temp = prng.get<uint64_t>();
+      masks[j][i] = temp; 
+      //std::cout << "masks" << j << " "<< i << " "<<  masks[j][i] << std::endl; 
     } 
   }
-/*
-  std::cout << "testing xor of blocks" << masks[0][0] << std::endl;
-  std::cout << masks[0][1] << std::endl; 
-  std::cout << masks[0][0] ^ masks[0][1] std::endl; 
-  std::vector<std::array<osuCrypto::block, 2>> ot_messages;*/
+
+// ------------------------------benes first half -------------------------
+  std::vector<std::vector<osuCrypto::block>> ot_messages;
+  int baseline_count = 1;
+  int size = values; 
+  int switch_count = values / 2; 
+  int baseline = 0; 
+  uint64_t a, b, c; 
+  std::vector<osuCrypto::block> message_pair; 
+  uint64_t left, right; 
+  osuCrypto::block m0, m1; 
+  for (int j = 0; j < levels / 2; j++){
+    //std::cout << "j = " << j << std::endl; 
+    baseline_count = pow(2, j);
+    size = values / baseline_count; // you have the size and can figure the baselines
+    for (int k = 0; k < baseline_count; k++) {
+      switch_count = size / 2; 
+      baseline = k * size; 
+      for (int i = 0; i < switch_count; i++){
+          // m0 
+        left = masks[baseline + 2*i][j] ^ masks[baseline + i][j + 1];
+        right = masks[baseline + 2*i + 1][j] ^ masks[baseline + size / 2 + i][j + 1];
+        m0 = osuCrypto::toBlock(left, right);
+        message_pair.push_back(m0);
+        /*if (j == 0 && i == 0 && baseline == 0) {
+          std::cout << "left" << left << std::endl; 
+          std::cout << "right" << right << std::endl; 
+          std::cout << "m0 = " << m0 << std::endl; 
+          std::cout << "message pair = " << message_pair.at(0) << std::endl; 
+          //std::cout << "ot_messages = " << ot_messages.at(0).at(1) << std::endl; 
+          a = left;
+        }
+
+        if (j == 1 && i == 0 && baseline == 0) {
+          std::cout << "left" << left << std::endl; 
+          std::cout << "right" << right << std::endl; 
+          std::cout << "m0 = " << m0 << std::endl; 
+          std::cout << "message pair = " << message_pair.at(0) << std::endl; 
+          //std::cout << "ot_messages = " << ot_messages.at(0).at(1) << std::endl; 
+          b = left; 
+        }*/
+        
+        
+          // m1
+        right = masks[baseline + 2*i + 1][j] ^ masks[baseline + i][j + 1]; 
+        left = masks[baseline + 2*i][j] ^ masks[baseline + size / 2 + i][j + 1];
+        m1 = osuCrypto::toBlock(left, right);
+        message_pair.push_back(m1); 
+        /*if(j == 2 && i == 0) {
+          std::cout << "mp"  << message_pair.at(0) << std::endl; 
+          std::cout << "mp"  << message_pair.at(1) << std::endl; 
+        }*/
+
+        ot_messages.push_back(message_pair);
+        message_pair.clear(); 
+      }
+
+    }
+    
+  } 
+  /*std::cout << ot_messages.at(16).at(0) << std::endl;
+  std::cout << ot_messages.at(16).at(1) << std::endl;
+  std::cout << ot_messages.at(18).at(0) << std::endl;
+  std::cout << ot_messages.at(18).at(1) << std::endl;
+  std::cout << ot_messages.at(20).at(0) << std::endl;
+  std::cout << ot_messages.at(20).at(1) << std::endl;*/
+  /*std::cout << "a " << a << std::endl;
+    std::cout << "b " << b << std::endl;
+    std::cout << "c " << (a ^ b) << std::endl;
+    std::cout << "c " << (masks[0][0] ^ masks[0][2]) << std::endl;*/
+
+
+
+
+  
+  for(int i = levels / 2; i < (levels - 1); i++) {
+
+    //std::cout << "i = " << i << std::endl; 
+    baseline_count = pow(2, levels - i - 2); // (levels - 1 - (j - 1))
+    size = values / baseline_count; // you have the size and can figure the baselines
+    
+    for (int k = 0; k < baseline_count; k++) {
+      baseline = k * size; 
+      //std::cout << "baseline  = " << baseline << std::endl; 
+      switch_count = size / 2; 
+      //std::cout << "switch count = " << switch_count << std::endl; 
+      for (int j = 0; j < switch_count; j++){
+        // m0
+        left = masks[baseline + j][i] ^ masks[baseline + 2 * j][i + 1];
+        right = masks[baseline + size / 2 + j][i] ^ masks[baseline + 2 * j + 1][i + 1];
+        m0 = osuCrypto::toBlock(left, right);
+        // m1
+        left = masks[baseline + j][i] ^ masks[baseline + 2 * j + 1][i + 1];
+        right = masks[baseline + size / 2 + j][i] ^ masks[baseline + 2 * j][i + 1];
+        m1 = osuCrypto::toBlock(left, right);
+
+
+        message_pair.push_back(m0);
+        message_pair.push_back(m1); 
+        /*if(j == 0 && i == 4) {
+          std::cout << "mp"  << message_pair.at(0) << std::endl; 
+          std::cout << "mp"  << message_pair.at(1) << std::endl; 
+        }*/
+        ot_messages.push_back(message_pair);
+        message_pair.clear(); 
+      }
+    }
+
+  } 
+ /* std::cout << ot_messages.at(32).at(0) << std::endl;
+  std::cout << ot_messages.at(32).at(1) << std::endl;
+  std::cout << ot_messages.at(36).at(0) << std::endl;
+  std::cout << ot_messages.at(36).at(1) << std::endl;*/
+ 
+  //std::cout << "ot_messages size " << ot_messages.size() << std::endl; 
+
+  for (int i = 0; i < values / 2; i++){
+
+    // m0
+        left = masks[2*i][levels] ^ masks[2*i][wires];
+        right = masks[2*i + 1][levels] ^ masks[2*i + 1][wires];
+        m0 = osuCrypto::toBlock(left, right);
+        // m1
+        left = masks[2*i][levels] ^ masks[2*i + 1][wires];
+        right = masks[2*i + 1][levels] ^ masks[2*i][wires];
+        m1 = osuCrypto::toBlock(left, right);
+
+
+        message_pair.push_back(m0);
+        message_pair.push_back(m1); 
+        /*if(i == 1 || i == 0) {
+          std::cout << "mp"  << message_pair.at(0) << std::endl; 
+          std::cout << "mp"  << message_pair.at(1) << std::endl; 
+        }*/
+        ot_messages.push_back(message_pair);
+        message_pair.clear(); 
+  }
+
+   /* std::cout << ot_messages.at(48).at(0) << std::endl;
+    std::cout << ot_messages.at(48).at(1) << std::endl;
+    std::cout << ot_messages.at(49).at(0) << std::endl;
+    std::cout << ot_messages.at(49).at(1) << std::endl;*/
 }
 
 std::vector<uint64_t> OpprgPsiClient(const std::vector<uint64_t> &elements,
@@ -488,3 +632,22 @@ void PrintTimings(const PsiAnalyticsContext &context) {
 }
 
 }
+
+ /* ---------------------testing blocks and xor ------------------------
+  uint64_t dummy1[2];
+  dummy1[0] = masks[0][0];
+  dummy1[1] = masks[0][1];
+  std::cout << dummy1[0] << std::endl;
+  std::cout << dummy1[1] << std::endl; 
+  osuCrypto::block dummy2 = osuCrypto::toBlock(dummy1[0], dummy1[1]);
+  std::cout << "block " << dummy2 << std::endl; 
+  
+  // check 
+  uint64_t c = masks[0][0] ^ masks[0][1];
+  uint64_t b = c ^ masks[0][0];
+  uint64_t a = c ^ b; 
+  std::cout << masks[0][0] << std::endl;
+  std::cout << masks[0][1] << std::endl; 
+  std::cout << "c = " << c << std::endl; 
+  std::cout << "b = " << b << std::endl; 
+  std::cout << "a = " << a << std::endl; */
