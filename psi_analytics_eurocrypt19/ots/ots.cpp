@@ -191,9 +191,9 @@ std::vector<std::vector<std::uint64_t>> ot_sender(
   return outputs;
 }
 
-void ot_send(std::vector<std::array<osuCrypto::block, 2>> &messages, ENCRYPTO::PsiAnalyticsContext &context)  
+void ot_send(std::vector<std::vector<osuCrypto::block>> &messages, ENCRYPTO::PsiAnalyticsContext &context)  
 {
-    std::cout<<"\n OT sender here \n";
+    std::cout<<"\n OT sender!! \n";
     osuCrypto::IOService ios;
     std::string name = "n";
     osuCrypto::Session ep(ios, context.address, context.port + 1, osuCrypto::SessionMode::Client,
@@ -202,7 +202,7 @@ void ot_send(std::vector<std::array<osuCrypto::block, 2>> &messages, ENCRYPTO::P
 
     osuCrypto::PRNG prng1(_mm_set_epi32(4253233465, 334565, 0, 235));
 
-    osuCrypto::u64 numOTs = 150;
+    //osuCrypto::u64 numOTs = 150;
 
     std::vector<osuCrypto::block> baseRecv(128);
     osuCrypto::DefaultBaseOT baseOTs;
@@ -228,8 +228,7 @@ void ot_send(std::vector<std::array<osuCrypto::block, 2>> &messages, ENCRYPTO::P
         sendChl.send(std::move(sendMsg[i]));
     }
 
-    
-
+    /*
     for (int i=0; i < 5; ++i) {
       for (int j=0; j < 2; ++j) {
         uint64_t temp = 10*i + j;
@@ -239,6 +238,7 @@ void ot_send(std::vector<std::array<osuCrypto::block, 2>> &messages, ENCRYPTO::P
       std::cout<<std::endl;
 
     }
+    */
 
 }
 
@@ -262,8 +262,9 @@ void ot_recv(osuCrypto::BitVector &choices, std::vector<osuCrypto::block> &recvM
   std::vector<std::array<osuCrypto::block, 2>> baseSend(128);
   osuCrypto::BitVector baseChoice(128);
 
-  for (int i=0; i < choices.size();++i)
-    std::cout<<choices[i]<<" ";
+
+  //for (int i=0; i < choices.size();++i)
+  //  std::cout<<choices[i]<<" ";
 
   prng0.get((osuCrypto::u8*)baseSend.data()->data(), sizeof(osuCrypto::block) * 2 * baseSend.size());
   
@@ -289,7 +290,7 @@ void ot_recv(osuCrypto::BitVector &choices, std::vector<osuCrypto::block> &recvM
 
   for (int i=0; i < 5; ++i)  {
     uint64_t output = *reinterpret_cast<uint64_t*>(&recvMsg[i]);
-    std::cout<<output <<std::endl;
+    //std::cout<<output <<std::endl;
   }
 
 }

@@ -53,7 +53,7 @@ std::vector<std::vector<std::uint64_t>> ot_sender(
 
 
 
-void ot_send(std::vector<std::array<osuCrypto::block, 2>> &sendMsg, ENCRYPTO::PsiAnalyticsContext &context); 
+void ot_send(std::vector<std::vector<osuCrypto::block>> &sendMsg, ENCRYPTO::PsiAnalyticsContext &context); 
 
 void ot_recv(osuCrypto::BitVector &choices, std::vector<osuCrypto::block> &recvMsg, ENCRYPTO::PsiAnalyticsContext &context);
 

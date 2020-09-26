@@ -27,13 +27,18 @@
 #include "helpers.h"
 #include "psi_analytics_context.h"
 
+#include "libOTe/Base/BaseOT.h"
+
+
 #include <vector>
 
 namespace ENCRYPTO {
 
 uint64_t run_psi_analytics(const std::vector<std::uint64_t> &inputs, PsiAnalyticsContext &context);
 
-void client_osn(int N);
+std::vector<std::vector<uint64_t>>  client_osn (int N, ENCRYPTO::PsiAnalyticsContext &context);
+
+std::vector<osuCrypto::block> server_osn (int N, ENCRYPTO::PsiAnalyticsContext &context); 
 
 std::vector<uint64_t> OpprgPsiClient(const std::vector<uint64_t> &elements,
                                      PsiAnalyticsContext &context);

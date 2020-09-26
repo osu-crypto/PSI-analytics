@@ -49,6 +49,7 @@
 #include <ratio>
 #include <unordered_set>
 #include <vector>
+#include <cmath>
 
 #include <bits/stdc++.h> 
 
@@ -97,9 +98,34 @@ uint64_t run_psi_analytics(const std::vector<std::uint64_t> &inputs, PsiAnalytic
 
 
   //-------------------------------------------------------------------*/
+
+  int N = int(ceil(log2(context.nbins)));    // Benes network has 2^N inputs
+
   if (context.role == CLIENT) {
-    client_osn(5);
+    
+    std::vector<std::vector<uint64_t>> ret_masks = client_osn(N, context);    //  OSN related pre-processing
+
     bins = OpprgPsiClient(inputs, context);
+
+    // --------------- Online OSN -----------------------------------------
+    for (int i = 0; i < bins.size(); ++i)
+      ret_masks[i][0] = ret_masks[i][0] ^ bins[i];
+
+    osuCrypto::IOService ios;
+    std::string name = "n";
+    osuCrypto::Session ep(ios, context.address, context.port + 2, osuCrypto::SessionMode::Client,
+                        name);
+    auto sendChl = ep.addChannel(name, name);
+
+    std::vector<uint64_t> output_masks;
+
+    for (int i = 0; i < ret_masks.size(); ++i) {
+      sendChl.send(ret_masks[i][0]);   //  sending masked input vector
+      output_masks.push_back(ret_masks[i][1]);
+      //std::cout<<" "<<ret_masks[i][0];
+    }
+
+
     // ------------------------ kkrt part ----------------------
     std::vector<uint64_t> bins2;
     bins2 = ot_receiver(bins, context);
@@ -110,7 +136,27 @@ uint64_t run_psi_analytics(const std::vector<std::uint64_t> &inputs, PsiAnalytic
     }*/
     //-----------------------------kkrt --------------------------
   } else {
+
+    std::vector<osuCrypto::block> ot_output = server_osn(N, context);
+
     bins = OpprgPsiServer(inputs, context);
+
+   //--------------------- online OSN ----------------
+
+    std::vector<uint64_t> input_vec(1<<N);
+
+    std::string name = "n";
+    osuCrypto::IOService ios;
+    osuCrypto::Session ep(ios, context.address, context.port + 2, osuCrypto::SessionMode::Server,
+                        name);
+    auto recvChl = ep.addChannel(name, name);
+    for (int i = 0; i < (1 << N); ++i) {
+      recvChl.recv(input_vec[i]);
+      //std::cout<<" "<<input_vec[i];
+    }
+        
+
+
     //-------------------kkrt part ---------------------------
     std::vector<std::vector<std::uint64_t>> bins2; 
     std::vector<std::vector<std::uint64_t>> bins_input; 
@@ -120,6 +166,8 @@ uint64_t run_psi_analytics(const std::vector<std::uint64_t> &inputs, PsiAnalytic
         bins_input.push_back(temp);
         temp.erase(temp.begin(), temp.end());
     }
+
+
     bins2 = ot_sender(bins_input, context);
     
     /*for (auto i = 0ull; i < bins2.size(); ++i) {
@@ -211,14 +259,49 @@ uint64_t run_psi_analytics(const std::vector<std::uint64_t> &inputs, PsiAnalytic
   return output;
 }
 
+std::vector<osuCrypto::block> server_osn(int N, ENCRYPTO::PsiAnalyticsContext &context) {
 
-void client_osn (int N) { 
+  int temp;
+  int n = 1 << N;
+  int m = context.nbins;
+  std::vector<int> src(n), dest(n);
+  for (int i=0; i < dest.size();++i)
+    src[i] = dest[i] = i;
+  
+  osuCrypto::PRNG prng(_mm_set_epi32(4253233465, 334565, 0, 235)); // we need to modify this seed 
+
+  for (int i=m-1; i > 0; i--) {
+    int loc = prng.get<uint64_t>() % (i+1);  //  pick random location in the array
+    temp = dest[i];
+    dest[i] = dest[loc];
+    dest[loc] = temp;
+  }
+
+/*
+  std::cout<<"Testing generated permutation where m= "<<m<<std::endl;
+  for (int i=0; i < perm.size(); ++i)
+    std::cout<<" "<<perm[i];
+  std::cout<<std::endl;
+*/
+  benes_route(N, 0, 0, src, dest);
+  osuCrypto::u64 len = n;
+  osuCrypto::BitVector switches = return_switches(N);
+
+  std::vector<osuCrypto::block> recvMsg(switches.size());
+  ot_recv(switches, recvMsg, context);
+  //std::cout<<"test - "<<m<<" "<<n<<" "<<switches.size()<<" "<<recvMsg.size();
+  return recvMsg;
+}
+
+
+std::vector<std::vector<uint64_t>>  client_osn (int N, ENCRYPTO::PsiAnalyticsContext &context) { 
   // assume we are getting the power of two value
   // if N is not a power of 2, fix accordingly for the generalized benes network
   int levels = 2 * N - 1; 
   int values = 1 << N; 
   int wires = levels + 1;  
-  uint64_t masks[values][wires]; // # of wire levels is one more than the # of switch levels
+  //uint64_t masks[values][wires]; // # of wire levels is one more than the # of switch levels
+  uint64_t masks[values][wires];
   osuCrypto::PRNG prng(_mm_set_epi32(4253233465, 334565, 0, 235)); // not sure what these parameters mean? fix according to what we need
 
   for (int i = 0; i < wires; i++) {
@@ -366,6 +449,18 @@ void client_osn (int N) {
         ot_messages.push_back(message_pair);
         message_pair.clear(); 
   }
+
+  //std::cout<<"test - "<<ot_messages.size();
+
+  ot_send(ot_messages, context);
+
+  std::vector<std::vector<uint64_t>> ret_masks(values); // # of wire levels is one more than the # of switch levels
+  for (int i= 0; i < values; ++i) {
+    ret_masks[i].push_back(masks[i][0]);
+    ret_masks[i].push_back(masks[i][levels]);
+  }
+
+  return ret_masks;
 
    /* std::cout << ot_messages.at(48).at(0) << std::endl;
     std::cout << ot_messages.at(48).at(1) << std::endl;

@@ -6,6 +6,7 @@
 #include <math.h>
 using namespace std;
 
+#include <cryptoTools/Common/BitVector.h>
 
 const int max_dim = 13;
 
@@ -14,7 +15,21 @@ int inv_perm[1 << max_dim];
 
 char switched[2 * max_dim - 1][1 << (max_dim - 1)];
 
-char path[1 << max_dim];                          
+char path[1 << max_dim];    
+
+
+osuCrypto::BitVector return_switches(int N) {
+
+  int values = 1 << N;
+  int levels = 2*N - 1;
+  osuCrypto::BitVector switches(values*levels/2);
+  for (int j=0; j < levels; ++j)
+    for (int i=0; i < values/2; ++i) {
+      switches[(values*j)/2 +i] = switched[j][i];
+      //std::cout<<" . "<<int(switched[i][j])<<" -> "<<switches[values*j+i];
+    }
+  return switches;
+}                     
 
 
 void DFS(int idx, int route) {
