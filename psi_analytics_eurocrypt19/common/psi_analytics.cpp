@@ -121,14 +121,20 @@ uint64_t run_psi_analytics(const std::vector<std::uint64_t> &inputs, PsiAnalytic
 
     for (int i = 0; i < ret_masks.size(); ++i) {
       sendChl.send(ret_masks[i][0]);   //  sending masked input vector
-      output_masks.push_back(ret_masks[i][1]);
       //std::cout<<" "<<ret_masks[i][0];
+    }
+
+    for (int i = 0; i < context.nbins; ++i) {
+      output_masks.push_back(ret_masks[i][1]);
     }
 
 
     // ------------------------ kkrt part ----------------------
     std::vector<uint64_t> bins2;
-    bins2 = ot_receiver(bins, context);
+    bins2 = ot_receiver(output_masks, context);
+
+    for (int i = 0; i < output_masks.size(); ++i) 
+      sendChl.send(output_masks[i]);
      
     /*for (auto i = 0ull; i < bins2.size(); ++i) {
         std::cout << "client side: output of oprf - 1 " << bins[i] << std::endl;
@@ -137,9 +143,15 @@ uint64_t run_psi_analytics(const std::vector<std::uint64_t> &inputs, PsiAnalytic
     //-----------------------------kkrt --------------------------
   } else {
 
-    std::vector<osuCrypto::block> ot_output = server_osn(N, context);
+    std::vector<int> dest(1 << N);
+    std::vector<osuCrypto::block> ot_output = server_osn(N, context, dest);
 
     bins = OpprgPsiServer(inputs, context);
+
+    std::vector<uint64_t> permuted_bins(context.nbins);
+
+    for (int i=0; i < permuted_bins.size(); ++i)
+      permuted_bins[dest[i]] = bins[i];
 
    //--------------------- online OSN ----------------
 
@@ -154,21 +166,37 @@ uint64_t run_psi_analytics(const std::vector<std::uint64_t> &inputs, PsiAnalytic
       recvChl.recv(input_vec[i]);
       //std::cout<<" "<<input_vec[i];
     }
-        
+
+    //  I'm assuming that you store the eal output in the eval
+    std::vector<std::uint64_t> benes_output(context.nbins); 
+
+
 
 
     //-------------------kkrt part ---------------------------
+    
+    // permute the bin vector
+
+
     std::vector<std::vector<std::uint64_t>> bins2; 
     std::vector<std::vector<std::uint64_t>> bins_input; 
     std::vector<std::uint64_t> temp; 
     for (auto i = 0ull; i < bins.size(); ++i) { 
-        temp.push_back(bins[i]);
+        temp.push_back(permuted_bins[i]^benes_output[i]);
         bins_input.push_back(temp);
         temp.erase(temp.begin(), temp.end());
     }
-
-
     bins2 = ot_sender(bins_input, context);
+
+    //  receive the strings fro client for local comparison
+    std::vector<std::uint64_t> client_ouput(context.nbins);
+    osuCrypto::BitVector char_vec(context.nbins);
+    for (int i = 0; i < context.nbins; ++i) {
+      recvChl.recv(client_ouput[i]);
+      char_vec[i] = (client_ouput[i] == bins2[i][0]);
+    }
+
+    std::cout<<"The characteristic vector is as follows: "<<char_vec<<std::endl;
     
     /*for (auto i = 0ull; i < bins2.size(); ++i) {
     std::cout << "server side position i = " << i <<  "size" <<  bins2.at(i).size() << std::endl;
@@ -259,12 +287,12 @@ uint64_t run_psi_analytics(const std::vector<std::uint64_t> &inputs, PsiAnalytic
   return output;
 }
 
-std::vector<osuCrypto::block> server_osn(int N, ENCRYPTO::PsiAnalyticsContext &context) {
+std::vector<osuCrypto::block> server_osn(int N, ENCRYPTO::PsiAnalyticsContext &context, std::vector<int> dest) {
 
   int temp;
   int n = 1 << N;
   int m = context.nbins;
-  std::vector<int> src(n), dest(n);
+  std::vector<int> src(n);
   for (int i=0; i < dest.size();++i)
     src[i] = dest[i] = i;
   
