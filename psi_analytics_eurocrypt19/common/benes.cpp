@@ -127,10 +127,41 @@ void benes_route(int n, int lvl_p, int perm_idx, const vector<int> &src, const v
 
 // baseline: is in terms of the values, not switches
 // size: is in terms of the wires/values, not switches
-void fwd_propagate (int size, int baseline, int level, vector<int> &source, vector<int> &dest) {
+void fwd_propagate (int size, int baseline, int level, vector<uint64_t> &source, vector<uint64_t> &dest, vector<osuCrypto::block> &ot_msgs) {
   //std::cout << "in fwd propagate " << std::endl; 
-  int switch_count = size / 2; 
+  int switch_count = size / 2;
+  osuCrypto::block temp_block; 
+  uint64_t temp_int[2]; 
   for (int j = 0; j < switch_count; j++){
+      temp_block = ot_msgs.at(0);
+      ot_msgs.erase(ot_msgs.begin());
+      memcpy(temp_int, &temp_block, sizeof(temp_int));
+      if (switched[level][baseline / 2 + j] == 0) {
+        dest[baseline + j] = source[baseline + 2*j] ^ temp_int[0];
+        dest[baseline + size / 2 + j] = source[baseline + 2*j + 1] ^ temp_int[1];
+      }
+      else {
+        dest[baseline + j] = source[baseline + 2*j + 1] ^ temp_int[1];
+        dest[baseline + size / 2 + j] = source[baseline + 2*j] ^ temp_int[0];
+      }
+  }
+
+ /* std::cout << "We are in level: " << level << std::endl; 
+  for (int i = 0; i < size; i ++){
+    std::cout << "source" << source[baseline + i] << " " << dest[baseline + i] << std::endl; 
+  }*/
+
+}
+
+void f_propagate (int size, int baseline, int level, vector<uint64_t> &source, vector<uint64_t> &dest) {
+  //std::cout << "in fwd propagate " << std::endl; 
+  int switch_count = size / 2;
+  //osuCrypto::block temp_block; 
+  //uint64_t temp_int[2]; 
+  for (int j = 0; j < switch_count; j++){
+      //temp_block = ot_msgs.at(0);
+      //ot_msgs.erase(ot_msgs.begin());
+      //memcpy(temp_int, &temp_block, sizeof(temp_int));
       if (switched[level][baseline / 2 + j] == 0) {
         dest[baseline + j] = source[baseline + 2*j];
         dest[baseline + size / 2 + j] = source[baseline + 2*j + 1];
@@ -148,10 +179,40 @@ void fwd_propagate (int size, int baseline, int level, vector<int> &source, vect
 
 }
 
-void rev_propagate (int size, int baseline, int level, vector<int> &source, vector<int> &dest) {
+void rev_propagate (int size, int baseline, int level, vector<uint64_t> &source, vector<uint64_t> &dest, vector<osuCrypto::block> &ot_msgs) {
   //std::cout << "in rev propagate " << std::endl; 
   int switch_count = size / 2; 
+  osuCrypto::block temp_block; 
+  uint64_t temp_int[2];
   for (int j = 0; j < switch_count; j++){
+      temp_block = ot_msgs.at(0);
+      memcpy(temp_int, &temp_block, sizeof(temp_int));
+      ot_msgs.erase(ot_msgs.begin());
+      if (switched[level][baseline / 2 + j] == 0) {
+        dest[baseline + 2 * j] = source[baseline + j] ^ temp_int[0];
+        dest[baseline + 2 * j + 1] = source[baseline + size / 2 + j] ^ temp_int[1];
+      }
+      else {
+        dest[baseline + 2 * j] = source[baseline + size / 2 + j] ^ temp_int[1];
+        dest[baseline + 2 * j + 1] = source[baseline + j] ^ temp_int[0];
+      }
+  }
+
+  /*std::cout << "We are in level: " << level << std::endl; 
+  for (int i = 0; i < size; i ++){
+    std::cout << "source" << source[baseline + i] << " " << dest[baseline + i] << std::endl; 
+  }*/
+
+}
+
+void r_propagate (int size, int baseline, int level, vector<uint64_t> &source, vector<uint64_t> &dest) {
+  //std::cout << "in rev propagate " << std::endl; 
+  int switch_count = size / 2; 
+  osuCrypto::block temp_block; 
+  uint64_t temp_int[2];
+  for (int j = 0; j < switch_count; j++){
+      //temp_block = ot_msgs.at(0);
+      //ot_msgs.erase(ot_msgs.begin());
       if (switched[level][baseline / 2 + j] == 0) {
         dest[baseline + 2 * j] = source[baseline + j];
         dest[baseline + 2 * j + 1] = source[baseline + size / 2 + j];
@@ -169,12 +230,15 @@ void rev_propagate (int size, int baseline, int level, vector<int> &source, vect
 
 }
 
-  void evaluate (int N, vector<int> &inputs) {
+vector<uint64_t> masked_evaluate (int N, vector<uint64_t> &inputs, vector<osuCrypto::block> ot_output) {
     int values = 1 << N; 
     int levels = 2 * N - 1; 
     int size = values;
     int baseline_count = 1; 
-    vector<int> temp(inputs.size());
+    vector<uint64_t> temp(inputs.size());
+    vector<osuCrypto::block> ot_masks = ot_output; 
+    //std::cout << "first ot message" << ot_masks.at(0) << std::endl; 
+    //std::cout << "second message ot" << ot_masks.at(1) << std::endl;
     int toggle = 0; 
     //forward 
     for (int j = 0; j < levels / 2; j++){
@@ -183,13 +247,115 @@ void rev_propagate (int size, int baseline, int level, vector<int> &source, vect
 
       if (toggle % 2 == 0){
           for (int k = 0; k < baseline_count; k++) {
-            fwd_propagate(size, k * size , j, inputs, temp);
+            fwd_propagate(size, k * size , j, inputs, temp, ot_masks);
+            //std::cout << "first ot message" << ot_masks.at(0) << std::endl; 
+  
           }
           toggle++; 
       } 
       else {
           for (int k = 0; k < baseline_count; k++) {
-            fwd_propagate(size, k * size , j, temp, inputs);
+            fwd_propagate(size, k * size , j, temp, inputs, ot_masks);
+          }
+          toggle++;
+      }
+
+    }
+
+    osuCrypto::block temp_block; 
+    uint64_t temp_int[2];
+    if (toggle % 2 == 0) {
+      for (int j = 0; j < values / 2; j++){
+          temp_block = ot_masks.at(0);
+          ot_masks.erase(ot_masks.begin());
+          if (switched[levels/2][j] == 1) { 
+            temp[2 * j + 1] = inputs[2 * j] ^ temp_int[0];
+            temp[2 * j] = inputs[2 * j + 1] ^ temp_int[1];
+          }
+          else {
+            temp[2 * j + 1] = inputs[2 * j + 1] ^ temp_int[1];
+            temp[2 * j] = inputs[2 * j] ^ temp_int[0];
+          }
+        }
+        /*for (int j = 0; j < values; j++){
+          std::cout << temp[j] << std::endl; 
+        }*/
+        toggle++;
+    }
+    else {
+      for (int j = 0; j < values / 2; j++){
+          temp_block = ot_masks.at(0);
+          ot_masks.erase(ot_masks.begin());
+          if (switched[levels/2][j] == 1) { 
+            inputs[2 * j + 1] = temp[2 * j] ^ temp_int[0];
+            inputs[2 * j] = temp[2 * j + 1] ^ temp_int[1];
+          }
+          else {
+            inputs[2 * j + 1] = temp[2 * j + 1] ^ temp_int[1];
+            inputs[2 * j] = temp[2 * j] ^ temp_int[0];
+          }
+        }
+        /*for (int j = 0; j < values; j++){
+          std::cout << inputs[j] << std::endl; 
+        }*/
+        toggle++;
+    }
+
+     
+    for(int j = levels / 2 - 1; j >= 0; j--) {
+      baseline_count = pow(2, j);
+      size = values / baseline_count; // you have the size and can figure the baselines
+
+      if (toggle % 2 == 0){
+          for (int k = 0; k < baseline_count; k++) {
+            rev_propagate(size, k * size , levels - (j + 1), inputs, temp, ot_masks);
+          }
+
+          toggle++; 
+      } 
+      else {
+          for (int k = 0; k < baseline_count; k++) { 
+            rev_propagate(size, k * size , levels - (j + 1), temp, inputs, ot_masks);
+          }
+          toggle++;
+      }
+
+    }
+  //std::cout << "in benes/evaluate()" << std::endl; 
+  if (toggle % 2 == 0) {
+    for (int i = 0; i < values; i ++)
+      std::cout << inputs[i] << std::endl; 
+    return inputs;
+  }
+  else {
+    for (int i = 0; i < values; i ++)
+      std::cout << temp[i] << std::endl;  
+    return temp;
+  }
+
+}
+
+  vector<uint64_t> evaluate (int N, vector<uint64_t> &inputs) {
+    int values = 1 << N; 
+    int levels = 2 * N - 1; 
+    int size = values;
+    int baseline_count = 1; 
+    vector<uint64_t> temp(inputs.size());
+    int toggle = 0; 
+    //forward 
+    for (int j = 0; j < levels / 2; j++){
+      baseline_count = pow(2, j);
+      size = values / baseline_count; // you have the size and can figure the baselines
+
+      if (toggle % 2 == 0){
+          for (int k = 0; k < baseline_count; k++) {
+            f_propagate(size, k * size , j, inputs, temp);
+          }
+          toggle++; 
+      } 
+      else {
+          for (int k = 0; k < baseline_count; k++) {
+            f_propagate(size, k * size , j, temp, inputs);
           }
           toggle++;
       }
@@ -207,9 +373,7 @@ void rev_propagate (int size, int baseline, int level, vector<int> &source, vect
             temp[2 * j] = inputs[2 * j];
           }
         }
-        /*for (int j = 0; j < values; j++){
-          std::cout << temp[j] << std::endl; 
-        }*/
+       
         toggle++;
     }
     else {
@@ -223,9 +387,7 @@ void rev_propagate (int size, int baseline, int level, vector<int> &source, vect
             inputs[2 * j] = temp[2 * j];
           }
         }
-        /*for (int j = 0; j < values; j++){
-          std::cout << inputs[j] << std::endl; 
-        }*/
+        
         toggle++;
     }
   
@@ -235,14 +397,14 @@ void rev_propagate (int size, int baseline, int level, vector<int> &source, vect
 
       if (toggle % 2 == 0){
           for (int k = 0; k < baseline_count; k++) {
-            rev_propagate(size, k * size , levels - (j + 1), inputs, temp);
+            r_propagate(size, k * size , levels - (j + 1), inputs, temp);
           }
 
           toggle++; 
       } 
       else {
           for (int k = 0; k < baseline_count; k++) { 
-            rev_propagate(size, k * size , levels - (j + 1), temp, inputs);
+            r_propagate(size, k * size , levels - (j + 1), temp, inputs);
           }
           toggle++;
       }
@@ -250,15 +412,17 @@ void rev_propagate (int size, int baseline, int level, vector<int> &source, vect
     }
   //std::cout << "in benes/evaluate()" << std::endl; 
   if (toggle % 2 == 0) {
-    for (int i = 0; i < values; i ++)
-      std::cout << inputs[i] << std::endl; 
+    //for (int i = 0; i < values; i ++)
+      //std::cout << inputs[i] << std::endl; 
+    return inputs;
   }
   else {
-    for (int i = 0; i < values; i ++)
-      std::cout << temp[i] << std::endl;  
+    //for (int i = 0; i < values; i ++)
+      //std::cout << temp[i] << std::endl; 
+    return temp;  
   }
 
-}
+} 
 
 
 

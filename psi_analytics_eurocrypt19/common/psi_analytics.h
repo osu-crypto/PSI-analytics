@@ -38,7 +38,7 @@ uint64_t run_psi_analytics(const std::vector<std::uint64_t> &inputs, PsiAnalytic
 
 std::vector<std::vector<uint64_t>>  client_osn (int N, ENCRYPTO::PsiAnalyticsContext &context);
 
-std::vector<osuCrypto::block> server_osn (int N, ENCRYPTO::PsiAnalyticsContext &context, std::vector<int> dest); 
+std::vector<osuCrypto::block> server_osn (int N, ENCRYPTO::PsiAnalyticsContext &context, std::vector<int> &dest); 
 
 std::vector<uint64_t> OpprgPsiClient(const std::vector<uint64_t> &elements,
                                      PsiAnalyticsContext &context);
