@@ -173,11 +173,6 @@ void f_propagate (int size, int baseline, int level, vector<uint64_t> &source, v
       }
   }
 
- /* std::cout << "We are in level: " << level << std::endl; 
-  for (int i = 0; i < size; i ++){
-    std::cout << "source" << source[baseline + i] << " " << dest[baseline + i] << std::endl; 
-  }*/
-
 }
 
 void rev_propagate (int size, int baseline, int level, vector<uint64_t> &source, vector<uint64_t> &dest, vector<osuCrypto::block> &ot_msgs) {
@@ -192,10 +187,19 @@ void rev_propagate (int size, int baseline, int level, vector<uint64_t> &source,
       if (switched[level][baseline / 2 + j] == 0) {
         dest[baseline + 2 * j] = source[baseline + j] ^ temp_int[0];
         dest[baseline + 2 * j + 1] = source[baseline + size / 2 + j] ^ temp_int[1];
+        /*std::cout << "m0 xor w0 " << temp_int[0] << std::endl;
+        std::cout << "m1 xor w1 " << temp_int[1] << std::endl;
+        std::cout << "in benes: output wire 0 " << dest[baseline + 2 * j] << std::endl;
+        std::cout << "in benes: output wire 1 " << dest[baseline + 2 * j + 1] << std::endl;*/
       }
       else {
         dest[baseline + 2 * j] = source[baseline + size / 2 + j] ^ temp_int[1];
         dest[baseline + 2 * j + 1] = source[baseline + j] ^ temp_int[0];
+        /*std::cout << "flip" << std::endl;
+        std::cout << "m0 xor w1 " << temp_int[0] << std::endl;
+        std::cout << "m1 xor w0 " << temp_int[1] << std::endl;
+        std::cout << "in benes: output wire 0 " << dest[baseline + 2 * j] << std::endl;
+        std::cout << "in benes: output wire 1 " << dest[baseline + 2 * j + 1] << std::endl;*/
       }
   }
 
@@ -232,6 +236,7 @@ void r_propagate (int size, int baseline, int level, vector<uint64_t> &source, v
 }
 
 vector<uint64_t> masked_evaluate (int N, vector<uint64_t> &inputs, vector<osuCrypto::block> ot_output) {
+    std::cout << "in masked eval " << std::endl;
     int values = 1 << N; 
     int levels = 2 * N - 1; 
     int size = values;
@@ -263,53 +268,72 @@ vector<uint64_t> masked_evaluate (int N, vector<uint64_t> &inputs, vector<osuCry
 
     }
 
+//-----------------------------------middle layer ----------------------------------------
     osuCrypto::block temp_block; 
     uint64_t temp_int[2];
     if (toggle % 2 == 0) {
+      
       for (int j = 0; j < values / 2; j++){
           temp_block = ot_masks.at(0);
           ot_masks.erase(ot_masks.begin());
+          memcpy(temp_int, &temp_block, sizeof(temp_int));
           if (switched[levels/2][j] == 1) { 
             temp[2 * j + 1] = inputs[2 * j] ^ temp_int[0];
             temp[2 * j] = inputs[2 * j + 1] ^ temp_int[1];
+            /*std::cout << "flip" << std::endl;
+            std::cout << "m0 xor w1 " << temp_int[0] << std::endl;
+            std::cout << "m1 xor w0 " << temp_int[1] << std::endl;
+            std::cout << "in benes: output wire 0 " << inputs[2 * j] << std::endl;
+            std::cout << "in benes: output wire 1 " << inputs[2 * j + 1] << std::endl;*/
           }
           else {
             temp[2 * j + 1] = inputs[2 * j + 1] ^ temp_int[1];
             temp[2 * j] = inputs[2 * j] ^ temp_int[0];
+            /*std::cout << "m0 xor w0 " << temp_int[0] << std::endl;
+            std::cout << "m1 xor w1 " << temp_int[1] << std::endl;
+            std::cout << "in benes: output wire 0 " << inputs[2 * j] << std::endl;
+            std::cout << "in benes: output wire 1 " << inputs[2 * j + 1] << std::endl;*/
           }
         }
-        /*for (int j = 0; j < values; j++){
-          std::cout << temp[j] << std::endl; 
-        }*/
+        
         toggle++;
     }
     else {
+    
       for (int j = 0; j < values / 2; j++){
           temp_block = ot_masks.at(0);
           ot_masks.erase(ot_masks.begin());
+          memcpy(temp_int, &temp_block, sizeof(temp_int));
           if (switched[levels/2][j] == 1) { 
             inputs[2 * j + 1] = temp[2 * j] ^ temp_int[0];
             inputs[2 * j] = temp[2 * j + 1] ^ temp_int[1];
+            /*std::cout << "flip" << std::endl;
+            std::cout << "m0 xor w1 " << temp_int[0] << std::endl;
+            std::cout << "m1 xor w0 " << temp_int[1] << std::endl;
+            std::cout << "in benes: output wire 0 " << inputs[2 * j] << std::endl;
+            std::cout << "in benes: output wire 1 " << inputs[2 * j + 1] << std::endl;*/
           }
           else {
             inputs[2 * j + 1] = temp[2 * j + 1] ^ temp_int[1];
             inputs[2 * j] = temp[2 * j] ^ temp_int[0];
+            /*std::cout << "m0 xor w0 " << temp_int[0] << std::endl;
+            std::cout << "m1 xor w1 " << temp_int[1] << std::endl;
+            std::cout << "in benes: output wire 0 " << inputs[2 * j] << std::endl;
+            std::cout << "in benes: output wire 1 " << inputs[2 * j + 1] << std::endl;*/
           }
         }
-        /*for (int j = 0; j < values; j++){
-          std::cout << inputs[j] << std::endl; 
-        }*/
+        
         toggle++;
     }
+//--------------------------------------------end middle layer-------------------------------
 
-     
     for(int j = levels / 2 - 1; j >= 0; j--) {
       baseline_count = pow(2, j);
       size = values / baseline_count; // you have the size and can figure the baselines
 
       if (toggle % 2 == 0){
           for (int k = 0; k < baseline_count; k++) {
-            rev_propagate(size, k * size , levels - (j + 1), inputs, temp, ot_masks);
+            rev_propagate(size, k * size , levels- (j + 1), inputs, temp, ot_masks);
           }
 
           toggle++; 
