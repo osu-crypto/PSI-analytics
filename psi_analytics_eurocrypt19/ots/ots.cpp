@@ -212,6 +212,7 @@ void ot_send(std::vector<std::vector<osuCrypto::block>> &messages, ENCRYPTO::Psi
     baseOTs.receive(baseChoice, baseRecv, prng1, sendChl, 1);
     sender.setBaseOts(baseRecv, baseChoice);
 
+    //std::cout << "messages ka size " << messages.size() << std::endl;
     std::vector<std::array<osuCrypto::block, 2>> sendMsg(messages.size());
     sender.send(sendMsg, prng1, sendChl);
     /*
@@ -223,6 +224,7 @@ void ot_send(std::vector<std::vector<osuCrypto::block>> &messages, ENCRYPTO::Psi
     */
     for (u64 i = 0; i < static_cast<u64>(sendMsg.size()); ++i)
     {
+        //std::cout<< " within OT " << messages[i][0] << " " << messages[i][1] << std::endl; 
         sendMsg[i][0] = sendMsg[i][0] ^ messages[i][0];
         sendMsg[i][1] = sendMsg[i][1] ^ messages[i][1];
         sendChl.send(std::move(sendMsg[i]));
@@ -280,18 +282,19 @@ void ot_recv(osuCrypto::BitVector &choices, std::vector<osuCrypto::block> &recvM
 
   //recvChl.recv(correction.data(), correction.size());
 
+
+  //std::cout << "CHOICE NUMBER " << choices.size() << std::endl;
   auto iter = choices.begin();
   for (u64 i = 0; i < choices.size(); ++i)
   {
+
         recvChl.recv(correction[i].data(), 2);
         recvMsg[i] = recvMsg[i] ^ correction[i][*iter];
+        //std::cout << " in OT recvd messsage " << recvMsg[i] << " choice " << choices[i] << std::endl;
         ++iter;
   }
 
-  for (int i=0; i < 5; ++i)  {
-    uint64_t output = *reinterpret_cast<uint64_t*>(&recvMsg[i]);
-    //std::cout<<output <<std::endl;
-  }
+  
 
 }
 

@@ -127,6 +127,8 @@ void benes_route(int n, int lvl_p, int perm_idx, const vector<int> &src, const v
 
 // baseline: is in terms of the values, not switches
 // size: is in terms of the wires/values, not switches
+
+
 void fwd_propagate (int size, int baseline, int level, vector<uint64_t> &source, vector<uint64_t> &dest, vector<osuCrypto::block> &ot_msgs) {
   //std::cout << "in fwd propagate " << std::endl; 
   int switch_count = size / 2;
@@ -136,20 +138,19 @@ void fwd_propagate (int size, int baseline, int level, vector<uint64_t> &source,
       temp_block = ot_msgs.at(0);
       ot_msgs.erase(ot_msgs.begin());
       memcpy(temp_int, &temp_block, sizeof(temp_int));
+      
       if (switched[level][baseline / 2 + j] == 0) {
         dest[baseline + j] = source[baseline + 2*j] ^ temp_int[0];
         dest[baseline + size / 2 + j] = source[baseline + 2*j + 1] ^ temp_int[1];
+        
+        
       }
       else {
         dest[baseline + j] = source[baseline + 2*j + 1] ^ temp_int[1];
         dest[baseline + size / 2 + j] = source[baseline + 2*j] ^ temp_int[0];
+        
       }
   }
-
- /* std::cout << "We are in level: " << level << std::endl; 
-  for (int i = 0; i < size; i ++){
-    std::cout << "source" << source[baseline + i] << " " << dest[baseline + i] << std::endl; 
-  }*/
 
 }
 
@@ -236,6 +237,7 @@ vector<uint64_t> masked_evaluate (int N, vector<uint64_t> &inputs, vector<osuCry
     int size = values;
     int baseline_count = 1; 
     vector<uint64_t> temp(inputs.size());
+    //cout << "size of ot_output " << ot_output.size() << std::endl;
     vector<osuCrypto::block> ot_masks = ot_output; 
     //std::cout << "first ot message" << ot_masks.at(0) << std::endl; 
     //std::cout << "second message ot" << ot_masks.at(1) << std::endl;
@@ -248,8 +250,7 @@ vector<uint64_t> masked_evaluate (int N, vector<uint64_t> &inputs, vector<osuCry
       if (toggle % 2 == 0){
           for (int k = 0; k < baseline_count; k++) {
             fwd_propagate(size, k * size , j, inputs, temp, ot_masks);
-            //std::cout << "first ot message" << ot_masks.at(0) << std::endl; 
-  
+            
           }
           toggle++; 
       } 
@@ -323,13 +324,13 @@ vector<uint64_t> masked_evaluate (int N, vector<uint64_t> &inputs, vector<osuCry
     }
   //std::cout << "in benes/evaluate()" << std::endl; 
   if (toggle % 2 == 0) {
-    for (int i = 0; i < values; i ++)
-      std::cout << inputs[i] << std::endl; 
+    //for (int i = 0; i < values; i ++)
+      //std::cout << inputs[i] << std::endl; 
     return inputs;
   }
   else {
-    for (int i = 0; i < values; i ++)
-      std::cout << temp[i] << std::endl;  
+    //for (int i = 0; i < values; i ++)
+      //std::cout << temp[i] << std::endl;  
     return temp;
   }
 
