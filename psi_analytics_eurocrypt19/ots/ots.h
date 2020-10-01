@@ -57,6 +57,10 @@ void ot_send(std::vector<std::vector<osuCrypto::block>> &sendMsg, ENCRYPTO::PsiA
 
 void ot_recv(osuCrypto::BitVector &choices, std::vector<osuCrypto::block> &recvMsg, ENCRYPTO::PsiAnalyticsContext &context);
 
+void rand_ot_send(std::vector<std::array<osuCrypto::block,2>> &sendMsg, ENCRYPTO::PsiAnalyticsContext &context);
+
+void rand_ot_recv(osuCrypto::BitVector &choices, std::vector<osuCrypto::block> &recvMsg, ENCRYPTO::PsiAnalyticsContext &context);
+
 
 }
 

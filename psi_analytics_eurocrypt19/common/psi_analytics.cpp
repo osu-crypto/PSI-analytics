@@ -105,6 +105,7 @@ uint64_t run_psi_analytics(const std::vector<std::uint64_t> &inputs, PsiAnalytic
     
     for (int i = 0; i < context.nbins; ++i) {
       output_masks.push_back(ret_masks[i][1]);
+      std::cout<<"output mask "<<output_masks[i]<<std::endl;
     }
 
 
@@ -112,8 +113,33 @@ uint64_t run_psi_analytics(const std::vector<std::uint64_t> &inputs, PsiAnalytic
     std::vector<uint64_t> bins2;
     bins2 = ot_receiver(output_masks, context);
 
-    
+    std::vector<uint64_t> recv_kkrt(bins2.size());
+    osuCrypto::BitVector char_vec(bins2.size());
 
+
+    osuCrypto::Session ep1(ios, context.address, context.port + 3, osuCrypto::SessionMode::Client,
+                        name);
+    auto recvChl_pc = ep1.addChannel(name, name);
+
+
+    for (int i=0; i < bins2.size();++i) {
+      recvChl_pc.recv(recv_kkrt[i]);
+      char_vec[i] = (recv_kkrt[i] == bins2[i]);
+    }
+
+    std::cout<<"permuted characteristic vector: "<<char_vec<<std::endl;
+
+
+    //  test
+    /*
+    std::vector<std::array<osuCrypto::block, 2>> sendMsg(4);
+    rand_ot_send(sendMsg, context);
+    for (int i = 0; i < sendMsg.size();++i)
+      std::cout<<sendMsg[i][0]<<" "<<sendMsg[i][1]<<std::endl;
+    */
+
+    
+    /*
     std::cout << "client side output " << std::endl;
     for (auto i = 0ull; i < bins2.size(); ++i) {
         std::cout << i << std:: endl; 
@@ -121,6 +147,7 @@ uint64_t run_psi_analytics(const std::vector<std::uint64_t> &inputs, PsiAnalytic
         std::cout << "client side: output of osn " << output_masks[i] << std::endl;
         std::cout << "client side: output of oprf - 2 " << bins2[i] << std::endl;
     }
+    */
     //-----------------------------kkrt --------------------------
   } else {
 
@@ -135,7 +162,7 @@ uint64_t run_psi_analytics(const std::vector<std::uint64_t> &inputs, PsiAnalytic
     std::vector<uint64_t> permuted_bins(1 << N);
 
     for (int i=0; i < (1 << N); ++i) {
-      std::cout << "dest " << i << " " << dest[i] << std::endl; 
+      //std::cout << "dest " << i << " " << dest[i] << std::endl; 
       permuted_bins[i] = bins[dest[i]];
       if (i >= context.nbins)
         permuted_bins[i] = 0;
@@ -187,8 +214,29 @@ uint64_t run_psi_analytics(const std::vector<std::uint64_t> &inputs, PsiAnalytic
     
     bins2 = ot_sender(bins_input, context);
 
+    osuCrypto::Session ep1(ios, context.address, context.port + 3, osuCrypto::SessionMode::Server,
+                        name);
+    auto sendChl_pc = ep1.addChannel(name, name);
+
+    for (int i=0; i < bins2.size(); ++i) 
+      sendChl_pc.send(bins2.at(i).at(0));
+
+
+    // test
+    /*
+    osuCrypto::BitVector choices(4);
+    std::vector<osuCrypto::block> recvMsg(4);
+    choices[0] = 0;
+    choices[1] = 1;
+    choices[2] = 1;
+    choices[3] = 0;
+    rand_ot_recv(choices, recvMsg, context);
+
+    for (int i=0; i < recvMsg.size();++i)
+      std::cout<<recvMsg[i]<<" "<<choices[i]<<std::endl;
+    */
     
-    
+    /*
     for (auto i = 0ull; i < bins2.size(); ++i) {
     std::cout << "server side position i = " << i <<  "size" <<  bins2.at(i).size() << std::endl;
       for (auto j = 0ull; j < bins2.at(i).size(); ++j) {
@@ -198,6 +246,7 @@ uint64_t run_psi_analytics(const std::vector<std::uint64_t> &inputs, PsiAnalytic
         
       }
     }
+    */
     // -------------------kkrt end -------------------------------- 
    
   }

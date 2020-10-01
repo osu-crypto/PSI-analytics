@@ -298,5 +298,59 @@ void ot_recv(osuCrypto::BitVector &choices, std::vector<osuCrypto::block> &recvM
 
 }
 
+//   std::vector<std::array<osuCrypto::block, 2>> sendMsg
+void rand_ot_send(std::vector<std::array<osuCrypto::block,2>> &sendMsg, ENCRYPTO::PsiAnalyticsContext &context)  
+{
+    std::cout<<"\n OT sender!! \n";
+    osuCrypto::IOService ios;
+    std::string name = "n";
+    osuCrypto::Session ep(ios, context.address, context.port + 1, osuCrypto::SessionMode::Client,
+                        name);
+    auto sendChl = ep.addChannel(name, name);
+
+    osuCrypto::PRNG prng1(_mm_set_epi32(4253233465, 334565, 0, 235));
+
+    std::vector<osuCrypto::block> baseRecv(128);
+    osuCrypto::DefaultBaseOT baseOTs;
+    osuCrypto::BitVector baseChoice(128);
+    baseChoice.randomize(prng1);
+    osuCrypto::IknpOtExtSender sender;
+    baseOTs.receive(baseChoice, baseRecv, prng1, sendChl, 1);
+    sender.setBaseOts(baseRecv, baseChoice);
+    sender.send(sendMsg, prng1, sendChl);
+}
+
+
+void rand_ot_recv(osuCrypto::BitVector &choices, std::vector<osuCrypto::block> &recvMsg, ENCRYPTO::PsiAnalyticsContext &context) 
+{
+  std::cout<<"\n Ot receiver!!\n";
+  std::string name = "n";
+  osuCrypto::IOService ios;
+  osuCrypto::Session ep(ios, context.address, context.port + 1, osuCrypto::SessionMode::Server,
+                        name);
+  auto recvChl = ep.addChannel(name, name);
+
+  //Channel recvChannel   = ep0.addChannel();
+
+  osuCrypto::PRNG prng0(_mm_set_epi32(4253465, 3434565, 234435, 23987045));
+
+  osuCrypto::u64 numOTs = choices.size(); // input.length();
+
+  std::vector<osuCrypto::block> baseRecv(128);
+  std::vector<std::array<osuCrypto::block, 2>> baseSend(128);
+  osuCrypto::BitVector baseChoice(128);
+
+
+  prng0.get((osuCrypto::u8*)baseSend.data()->data(), sizeof(osuCrypto::block) * 2 * baseSend.size());
+  
+  osuCrypto::DefaultBaseOT baseOTs;
+  baseOTs.send(baseSend, prng0, recvChl, 1);
+
+  osuCrypto::IknpOtExtReceiver recv;
+  recv.setBaseOts(baseSend); 
+  recv.receive(choices, recvMsg, prng0, recvChl);  
+
+}
+
 
 }
