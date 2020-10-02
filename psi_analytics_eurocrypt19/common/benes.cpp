@@ -128,6 +128,54 @@ void benes_route(int n, int lvl_p, int perm_idx, const vector<int> &src, const v
 // baseline: is in terms of the values, not switches
 // size: is in terms of the wires/values, not switches
 
+void f_propagate (int size, int baseline, int level, vector<uint64_t> &source, vector<uint64_t> &dest) {
+  //std::cout << "in fwd propagate " << std::endl; 
+  int switch_count = size / 2;
+  //osuCrypto::block temp_block; 
+  //uint64_t temp_int[2]; 
+  for (int j = 0; j < switch_count; j++){
+      //temp_block = ot_msgs.at(0);
+      //ot_msgs.erase(ot_msgs.begin());
+      //memcpy(temp_int, &temp_block, sizeof(temp_int));
+      if (switched[level][baseline / 2 + j] == 0) {
+        dest[baseline + j] = source[baseline + 2*j];
+        dest[baseline + size / 2 + j] = source[baseline + 2*j + 1];
+      }
+      else {
+        dest[baseline + j] = source[baseline + 2*j + 1];
+        dest[baseline + size / 2 + j] = source[baseline + 2*j];
+      }
+  }
+
+}
+
+
+void r_propagate (int size, int baseline, int level, vector<uint64_t> &source, vector<uint64_t> &dest) {
+  //std::cout << "in rev propagate " << std::endl; 
+  int switch_count = size / 2; 
+  osuCrypto::block temp_block; 
+  uint64_t temp_int[2];
+  for (int j = 0; j < switch_count; j++){
+      //temp_block = ot_msgs.at(0);
+      //ot_msgs.erase(ot_msgs.begin());
+      if (switched[level][baseline / 2 + j] == 0) {
+        dest[baseline + 2 * j] = source[baseline + j];
+        dest[baseline + 2 * j + 1] = source[baseline + size / 2 + j];
+      }
+      else {
+        dest[baseline + 2 * j] = source[baseline + size / 2 + j];
+        dest[baseline + 2 * j + 1] = source[baseline + j];
+      }
+  }
+
+  /*std::cout << "We are in level: " << level << std::endl; 
+  for (int i = 0; i < size; i ++){
+    std::cout << "source" << source[baseline + i] << " " << dest[baseline + i] << std::endl; 
+  }*/
+
+}
+
+
 
 void fwd_propagate (int size, int baseline, int level, vector<uint64_t> &source, vector<uint64_t> &dest, vector<osuCrypto::block> &ot_msgs) {
   //std::cout << "in fwd propagate " << std::endl; 
@@ -154,26 +202,6 @@ void fwd_propagate (int size, int baseline, int level, vector<uint64_t> &source,
 
 }
 
-void f_propagate (int size, int baseline, int level, vector<uint64_t> &source, vector<uint64_t> &dest) {
-  //std::cout << "in fwd propagate " << std::endl; 
-  int switch_count = size / 2;
-  //osuCrypto::block temp_block; 
-  //uint64_t temp_int[2]; 
-  for (int j = 0; j < switch_count; j++){
-      //temp_block = ot_msgs.at(0);
-      //ot_msgs.erase(ot_msgs.begin());
-      //memcpy(temp_int, &temp_block, sizeof(temp_int));
-      if (switched[level][baseline / 2 + j] == 0) {
-        dest[baseline + j] = source[baseline + 2*j];
-        dest[baseline + size / 2 + j] = source[baseline + 2*j + 1];
-      }
-      else {
-        dest[baseline + j] = source[baseline + 2*j + 1];
-        dest[baseline + size / 2 + j] = source[baseline + 2*j];
-      }
-  }
-
-}
 
 void rev_propagate (int size, int baseline, int level, vector<uint64_t> &source, vector<uint64_t> &dest, vector<osuCrypto::block> &ot_msgs) {
   //std::cout << "in rev propagate " << std::endl; 
@@ -200,31 +228,6 @@ void rev_propagate (int size, int baseline, int level, vector<uint64_t> &source,
         std::cout << "m1 xor w0 " << temp_int[1] << std::endl;
         std::cout << "in benes: output wire 0 " << dest[baseline + 2 * j] << std::endl;
         std::cout << "in benes: output wire 1 " << dest[baseline + 2 * j + 1] << std::endl;*/
-      }
-  }
-
-  /*std::cout << "We are in level: " << level << std::endl; 
-  for (int i = 0; i < size; i ++){
-    std::cout << "source" << source[baseline + i] << " " << dest[baseline + i] << std::endl; 
-  }*/
-
-}
-
-void r_propagate (int size, int baseline, int level, vector<uint64_t> &source, vector<uint64_t> &dest) {
-  //std::cout << "in rev propagate " << std::endl; 
-  int switch_count = size / 2; 
-  osuCrypto::block temp_block; 
-  uint64_t temp_int[2];
-  for (int j = 0; j < switch_count; j++){
-      //temp_block = ot_msgs.at(0);
-      //ot_msgs.erase(ot_msgs.begin());
-      if (switched[level][baseline / 2 + j] == 0) {
-        dest[baseline + 2 * j] = source[baseline + j];
-        dest[baseline + 2 * j + 1] = source[baseline + size / 2 + j];
-      }
-      else {
-        dest[baseline + 2 * j] = source[baseline + size / 2 + j];
-        dest[baseline + 2 * j + 1] = source[baseline + j];
       }
   }
 
@@ -460,11 +463,6 @@ void gen_benes_route(int n, int lvl_p, int perm_idx, const vector<int> &src, con
   vector<int> top1;
   int values = src.size();
   //printf("values: %d, location: %d %d \n", values,lvl_p,perm_idx);
-
-
-  
-
-
   /*
    * daca avem doar un nivel in retea
    */
@@ -614,112 +612,3 @@ void gen_benes_route(int n, int lvl_p, int perm_idx, const vector<int> &src, con
 
 
 
-/* --------------------------------------------------------------------
-------------------wrong benes structure---------------------------------
-void propagate (int N, int perm_idx, int lvl_p, vector<int> &source, vector<int> &destination) {
-  int switch_count = 1 << (N - 1); 
-  int values = 1 << N;
-  for (int j = 0; j < switch_count; j++){
-      if (switched[lvl_p][j] == 0) {
-        destination[perm_idx + j] = source[perm_idx + 2*j];
-        destination[perm_idx + values/2 + j] = source[perm_idx + 2*j + 1];
-      }
-      else {
-        destination[perm_idx + j] = source[perm_idx + 2*j + 1];
-        destination[perm_idx + values/2 + j] = source[perm_idx + 2*j];
-      }
-  }
-  for (int i = 0; i < values; i ++){
-    std::cout << "source" << source[i] << " " << destination[i] << std::endl; 
-  }
-
-}
-
-vector<int> evaluate (int N, int lvl_p, vector<int> &inputs) { // need to add another 2d vector here called masks
-  // include a check to see that size of inputs matches up 
-  int values = 1 << N;
-  int levels = 2 * N - 1;
-  cout << "levels is " << levels << std::endl;  
-  vector<int> temp(inputs.size());
-  for (int i = 0; i < levels; i++) {
-     if (i % 2  == 0) 
-        propagate(N, i, inputs, temp);
-     else 
-        propagate(N, i, temp, inputs);
-    }
-  
-  if (lvl_p % 2 == 0) {
-    for (int i = 0; i < values; i ++)
-      std::cout << temp[i] << std::endl; 
-    return temp;
-  }
-  else {
-    for (int i = 0; i < values; i ++)
-      std::cout << inputs[i] << std::endl; 
-    return inputs; 
-  }
-
-}
---------------------------------------------------------------------------------------*/
-
-
-/* -----------------want single main function---------------------------------------------
-int main() {
-
-  int N, i, j, values, levels;
-  bool first = true;
-
- // while (scanf("%i", &N) == 1, N) {
-    N = 4; 
-    values = 1 << N;
-    levels = 2 * N - 1;
-    
-    vector<int> dest(values);
-    vector<int> src(values);
-    
-    for (i = 0; i < values; i++) {
-      src[i] = i; 
-      
-      //std::cout << "enter the src vector " << i << std::endl; 
-    	//scanf("%i", &src[i]);
-      std::cout << "(pos, src)" << i << " " << src[i] << std::endl; 
-    }
-
-    
-  
-    
-  
-    
-
-    for (i = 0; i < values; i++) {
-      //std::cout << "enter the value " << i << std::endl; 
-    	scanf("%i", &dest[i]);
-      std::cout << "(pos, dest)" << i << " " << dest[i] << std::endl; 
-    }
-
-    benes_route(N, 0, 0, src, dest);
-
-    if (!first)
-    	printf("\n");
-    else first = false;
-
-    for (i = 0; i < levels; ++i) {
-      for (j = 0; j < values / 2; ++j) { // need to do a similar thing while connecting to the OT
-      	if (switched[i][j] == 0)
-      		printf("straight ");
-      	else
-      		printf("cross ");
-      }
-      printf("\n");
-    }
-
-
-   evaluate(N, src);
-    for (i = 0; i < values; i++) {
-        std::cout << src[i] << " " << permuted_inputs[i] << std::endl; 
-    }
-  //}
-  return 0;
-}*/
-
-//--------------------------------------------------------------------
