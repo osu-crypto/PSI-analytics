@@ -240,6 +240,7 @@ void rev_propagate (int size, int baseline, int level, vector<uint64_t> &source,
 
 vector<uint64_t> masked_evaluate (int N, vector<uint64_t> &inputs, vector<osuCrypto::block> ot_output) {
     std::cout << "in masked eval " << std::endl;
+  
     int values = 1 << N; 
     int levels = 2 * N - 1; 
     int size = values;
@@ -364,8 +365,8 @@ vector<uint64_t> masked_evaluate (int N, vector<uint64_t> &inputs, vector<osuCry
 }
 
   vector<uint64_t> evaluate (int N, vector<uint64_t> &inputs) {
-    int values = 1 << N; 
-    int levels = 2 * N - 1; 
+    int values = 1 << N; // get some value n
+    int levels = 2 * N - 1; // can compute levels
     int size = values;
     int baseline_count = 1; 
     vector<uint64_t> temp(inputs.size());
@@ -374,6 +375,8 @@ vector<uint64_t> masked_evaluate (int N, vector<uint64_t> &inputs, vector<osuCry
     for (int j = 0; j < levels / 2; j++){
       baseline_count = pow(2, j);
       size = values / baseline_count; // you have the size and can figure the baselines
+
+
 
       if (toggle % 2 == 0){
           for (int k = 0; k < baseline_count; k++) {
