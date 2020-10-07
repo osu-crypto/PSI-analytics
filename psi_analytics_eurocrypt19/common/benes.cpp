@@ -466,15 +466,20 @@ void gen_benes_route(int n, int lvl_p, int perm_idx, const vector<int> &src, con
   vector<int> top1;
   int values = src.size();
   //printf("values: %d, location: %d %d \n", values,lvl_p,perm_idx);
+
+
+  
+
+
   /*
    * daca avem doar un nivel in retea
    */
   if (values == 2) {
     if (n == 1)
-  	 switched[lvl_p][perm_idx] = src[0] != dest[0]; 
+     switched[lvl_p][perm_idx] = src[0] != dest[0]; 
     else
       switched[lvl_p+1][perm_idx] = src[0] != dest[0];
-  	return; 
+    return; 
   }
 
   if (values == 3) {
@@ -521,13 +526,13 @@ void gen_benes_route(int n, int lvl_p, int perm_idx, const vector<int> &src, con
    * destinatia este o permutare a intrari
    */
   for (i = 0; i < values; ++i)
-  	inv_perm[src[i]] = i;
+    inv_perm[src[i]] = i;
  
   for (i = 0; i < values; ++i)
-  	perm[i] = inv_perm[dest[i]];
+    perm[i] = inv_perm[dest[i]];
  
   for (i = 0; i < values; ++i)
-  	inv_perm[perm[i]] = i;
+    inv_perm[perm[i]] = i;
 
  
  /*
@@ -547,8 +552,8 @@ void gen_benes_route(int n, int lvl_p, int perm_idx, const vector<int> &src, con
 
 
   for (i = 0; i < values; ++i)
-  	if (path[i] < 0) {
-  		DFS(i, 0);
+    if (path[i] < 0) {
+      DFS(i, 0);
     }
 
 
@@ -566,6 +571,7 @@ void gen_benes_route(int n, int lvl_p, int perm_idx, const vector<int> &src, con
       x = shuffle((i | j) ^ path[i], n);
       if (x < values / 2) bottom1.push_back(src[i | j]); 
       else top1.push_back(src[i | j]);
+      //input_wires[lvl_p][perm_idx + i / 2][j] = src[i | j];
     }
   }
   if (values % 2 == 1){
@@ -584,6 +590,7 @@ void gen_benes_route(int n, int lvl_p, int perm_idx, const vector<int> &src, con
          //std:cout<<"top2 index "<<x - values / 2<<" : "<<src[perm[i | j]]<<std::endl;
           // top2[x - values / 2]
        }
+       //input_wires[lvl_p + levels - 1][perm_idx + i / 2][j] = src[perm[i | j]];
     }
   }
 
@@ -610,6 +617,258 @@ void gen_benes_route(int n, int lvl_p, int perm_idx, const vector<int> &src, con
   gen_benes_route(n - 1, lvl_p + 1, perm_idx, bottom1, bottom2);
   gen_benes_route(n - 1, lvl_p + 1, perm_idx + values / 4, top1, top2);
 }
+
+
+
+void gen_benes_eval(int n, int lvl_p, int perm_idx,  vector<uint64_t> &src) {
+
+  int levels, i, j, x, s;
+  vector<uint64_t> bottom1;
+  vector<uint64_t> top1;
+  int values = src.size();
+  uint64_t temp;
+
+
+  if (values == 2) {
+    if (n == 1) {
+     if (switched[lvl_p][perm_idx] == 1) {
+        temp = src[0];
+        src[0] = src[1];
+        src[1] = temp;
+     }  
+    }
+    else
+      if (switched[lvl_p+1][perm_idx] == 1) {
+        temp = src[0];
+        src[0] = src[1];
+        src[1] = temp;
+     }  
+    return; 
+  }
+
+  if (values == 3) {
+      if(switched[lvl_p][perm_idx] == 1) {
+        temp = src[0];
+        src[0] = src[1];
+        src[1] = temp;
+      }
+      if(switched[lvl_p+1][perm_idx] == 1) {
+        temp = src[1];
+        src[1] = src[2];
+        src[2] = temp;
+      }
+      if(switched[lvl_p+2][perm_idx] == 1) {
+        temp = src[0];
+        src[0] = src[1];
+        src[1] = temp;
+      }
+    return;
+  }
+  
+  levels = 2 * n - 1;
+   
+  // partea superioara
+  for (i = 0; i < values-1; i += 2) {
+    int s = switched[lvl_p][perm_idx + i / 2];
+    for (j = 0; j < 2; ++j) {
+      x = shuffle((i | j) ^ s, n);
+      if (x < values / 2) bottom1.push_back(src[i | j]); 
+      else top1.push_back(src[i | j]);
+    }
+  }
+  if (values % 2 == 1){
+    top1.push_back(src[values-1]);
+    //cout<<"pushing source: "<<src[values]<<"\n";
+  }
+
+
+  gen_benes_eval(n - 1, lvl_p + 1, perm_idx, bottom1);
+  gen_benes_eval(n - 1, lvl_p + 1, perm_idx + values / 4, top1);
+
+
+  //partea inferioara
+  for (i = 0; i < values-1; i += 2) {
+    s = switched[lvl_p + levels - 1][perm_idx + i / 2];
+    for (j = 0; j < 2; ++j) {
+      x = shuffle((i | j) ^ s, n);
+      if (x < values / 2)  src[i | j] = bottom1[x]; 
+      else {
+          src[i | j] = top1[i/2];
+       }
+    }
+  }
+
+  int idx =int(ceil(values*0.5));
+  if (values % 2 == 1) {
+    src[values-1] = top1[idx-1];
+  }
+
+
+}
+
+void gen_benes_masked_evaluate (int n, int lvl_p, int perm_idx, vector<uint64_t> &src, vector<vector<osuCrypto::block>> &ot_output) {
+
+
+  int levels, i, j, x, s;
+  vector<uint64_t> bottom1;
+  vector<uint64_t> top1;
+  int values = src.size();
+  uint64_t temp,temp_int[2];
+  osuCrypto::block temp_block;
+
+  uint64_t Val = ot_output[0].size(); //   number of inputs in the entire benes network
+
+  if (values == 2) {
+    if (n == 1) {
+      temp_block = ot_output[lvl_p][perm_idx];
+      memcpy(temp_int, &temp_block, sizeof(temp_int));
+      src[0] = src[0] ^ temp_int[0];
+      src[1] = src[1] ^ temp_int[1];
+     if (switched[lvl_p][perm_idx] == 1) {
+        temp = src[0];
+        src[0] = src[1];
+        src[1] = temp;
+     }  
+    //std::cout<<"base index: "<<" "<<(lvl_p)*(Val/2)+perm_idx<<" switch = "<<s<<" upper = "<<src[0]<<" "<<" lower = "<<src[1]<<" "<<temp_int[1]<<std::endl;
+
+    }
+    else {
+      temp_block = ot_output[lvl_p+1][perm_idx];
+      memcpy(temp_int, &temp_block, sizeof(temp_int));
+      src[0] = src[0] ^ temp_int[0];
+      src[1] = src[1] ^ temp_int[1];
+      if (switched[lvl_p+1][perm_idx] == 1) {
+        temp = src[0];
+        src[0] = src[1];
+        src[1] = temp;
+      } 
+
+    } 
+    return; 
+  }
+
+  if (values == 3) {
+      temp_block = ot_output[lvl_p][perm_idx];
+      memcpy(temp_int, &temp_block, sizeof(temp_int));
+      src[0] = src[0] ^ temp_int[0];
+      src[1] = src[1] ^ temp_int[1];
+      if(switched[lvl_p][perm_idx] == 1) {
+        temp = src[0];
+        src[0] = src[1];
+        src[1] = temp;
+      }
+
+
+      temp_block = ot_output[lvl_p+1][perm_idx];
+      memcpy(temp_int, &temp_block, sizeof(temp_int));
+      src[1] = src[1] ^ temp_int[0];
+      src[2] = src[2] ^ temp_int[1];
+      if(switched[lvl_p+1][perm_idx] == 1) {
+        temp = src[1];
+        src[1] = src[2];
+        src[2] = temp;
+      }
+
+
+      temp_block = ot_output[lvl_p+2][perm_idx];
+      memcpy(temp_int, &temp_block, sizeof(temp_int));
+      src[0] = src[0] ^ temp_int[0];
+      src[1] = src[1] ^ temp_int[1];
+      if(switched[lvl_p+2][perm_idx] == 1) {
+        temp = src[0];
+        src[0] = src[1];
+        src[1] = temp;
+      }
+
+
+    return;
+  }
+  
+  levels = 2 * n - 1;
+   
+  // partea superioara
+  for (i = 0; i < values-1; i += 2) {
+    int s = switched[lvl_p][perm_idx + i / 2];
+    
+    temp_block = ot_output[lvl_p][perm_idx+i/2];
+    memcpy(temp_int, &temp_block, sizeof(temp_int));
+
+    //std::cout<<"testing index : "<<(lvl_p)*(Val/2)+perm_idx+i/2<<std::endl;
+    //std::cout<<" input 1 : "<<src[i]<< " input 2 : "<<src[i^1]<<"ot message :"<<temp_int[0]
+    //<<" "<<temp_int[1]<<std::endl;
+
+
+    src[i] = src[i] ^ temp_int[0];
+    src[i ^ 1] = src[i ^ 1] ^ temp_int[1];    //  ^ or | ??
+
+
+
+    for (j = 0; j < 2; ++j) {
+      x = shuffle((i | j) ^ s, n);
+      if (x < values / 2) {
+        bottom1.push_back(src[i | j]);
+
+      }  
+      else {
+        top1.push_back(src[i | j]);
+      } 
+    }
+  }
+  if (values % 2 == 1){
+    top1.push_back(src[values-1]);
+    //cout<<"pushing source: "<<src[values]<<"\n";
+  }
+
+
+  gen_benes_masked_evaluate(n - 1, lvl_p + 1, perm_idx, bottom1, ot_output);
+  gen_benes_masked_evaluate(n - 1, lvl_p + 1, perm_idx + values / 4, top1, ot_output);
+
+
+  //std::vector<uint64_t> test_vec(src.size());
+  for (i = 0; i < values-1; i += 2) {
+    s = switched[lvl_p + levels - 1][perm_idx + i / 2];
+
+
+    for (j = 0; j < 2; ++j) {
+      x = shuffle((i | j) ^ s, n);
+      if (x < values / 2)  src[i | j] = bottom1[x]; 
+      else {
+          src[i | j] = top1[i/2];
+       }
+    }
+
+    temp_block = ot_output[lvl_p + levels - 1][perm_idx+i/2];
+    memcpy(temp_int, &temp_block, sizeof(temp_int));
+    src[i] = src[i] ^ temp_int[s];
+    src[i ^ 1] = src[i ^ 1] ^ temp_int[1-s];  
+
+
+  }
+
+  int idx =int(ceil(values*0.5));
+  if (values % 2 == 1) {
+    src[values-1] = top1[idx-1];
+  }
+
+  
+}
+
+
+osuCrypto::BitVector return_gen_benes_switches(int values) {
+
+
+  int N = int(ceil(log2(values)));
+  int levels = 2*N - 1;
+  osuCrypto::BitVector switches(levels*(values/2));
+  for (int j=0; j < levels; ++j)
+    for (int i=0; i < values/2; ++i) {
+      switches[j*(values/2) +i] = (switched[j][i]);
+      //std::cout<<j*(values/2) +i<<" "<<int(switched[j][i])<<" "<<switches[j*(values/2) +i]<<std::endl;
+
+    }
+  return switches;
+} 
+
 
 
 
