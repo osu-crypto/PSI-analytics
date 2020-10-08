@@ -40,6 +40,15 @@ std::vector<std::vector<uint64_t>>  client_osn (int N, ENCRYPTO::PsiAnalyticsCon
 
 std::vector<osuCrypto::block> server_osn (int N, ENCRYPTO::PsiAnalyticsContext &context, std::vector<int> &dest); 
 
+
+std::vector<osuCrypto::block> gen_benes_server_osn(int values, ENCRYPTO::PsiAnalyticsContext &context, std::vector<int> &dest);
+
+void prepare_correction(int n, int Val, int lvl_p, int perm_idx, std::vector<uint64_t> &src, std::vector<std::array<osuCrypto::block,2>> &ot_output, std::vector<osuCrypto::block> &correction_blocks);
+
+std::vector<std::vector<uint64_t>>  gen_benes_client_osn (int values, ENCRYPTO::PsiAnalyticsContext &context);
+
+
+
 std::vector<std::vector<uint64_t>>  client_r_ot_osn (int N, ENCRYPTO::PsiAnalyticsContext &context);
 
 std::vector<osuCrypto::block> server_r_ot_osn (int N, ENCRYPTO::PsiAnalyticsContext &context, std::vector<int> &dest); 
@@ -68,3 +77,5 @@ std::size_t PlainIntersectionSize(std::vector<std::uint64_t> v1, std::vector<std
 
 void PrintTimings(const PsiAnalyticsContext &context);
 }
+
+void test_gen_benes();
