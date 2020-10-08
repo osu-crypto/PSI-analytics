@@ -53,7 +53,7 @@
 
 #include <bits/stdc++.h> 
 
-#define UNION 1
+#define UNION 0
 
 namespace ENCRYPTO {
 
@@ -66,10 +66,10 @@ using duration_millis = std::chrono::duration<double, milliseconds_ratio>;
 
 uint64_t run_psi_analytics(const std::vector<std::uint64_t> &inputs, PsiAnalyticsContext &context) {
 
-  std::cout<<"INPUT:\n";
-  for (int i=0; i < inputs.size(); ++i) {
-    std::cout<<inputs[i]<<std::endl;
-  }
+  //std::cout<<"INPUT:\n";
+  //for (int i=0; i < inputs.size(); ++i) {
+  //  std::cout<<inputs[i]<<std::endl;
+  //}
 
   // establish network connection
   std::unique_ptr<CSocket> sock =
@@ -83,14 +83,29 @@ uint64_t run_psi_analytics(const std::vector<std::uint64_t> &inputs, PsiAnalytic
   // int N = int(ceil(log2(context.nbins)));    // Benes network has 2^N inputs
   int values = context.nbins;
 
+  //std::chrono::duration<double> diff;
+  duration_millis diff;
+
+
+
   if (context.role == CLIENT) {
-    
+ 
+   const auto offline_osn_start = std::chrono::system_clock::now();
+   
     std::vector<int> dest(values);
 
     std::vector<osuCrypto::block> ot_output = gen_benes_server_osn(values, context, dest);
 
+   const auto offline_osn_finish = std::chrono::system_clock::now();
+   diff = offline_osn_finish - offline_osn_start;
+
+   std::cout<<"\n offline osn: "<<diff.count();
+
     bins = OpprgPsiClient(inputs, context); // circuit-psi preprocessing 
 
+   const auto circuit_psi_pre_finish = std::chrono::system_clock::now();
+   diff = circuit_psi_pre_finish - offline_osn_finish;
+   std::cout<<"\n circuit PSI proprocess: "<<diff.count();
 
     std::vector<uint64_t> permuted_bins(values);
 
@@ -136,6 +151,9 @@ uint64_t run_psi_analytics(const std::vector<std::uint64_t> &inputs, PsiAnalytic
     //  std::cout << "benes output xor permuted bins" << (input_vec[i] ^ permuted_bins[i]) << std::endl;
     //}
    
+   const auto online_osn_finish = std::chrono::system_clock::now();
+   diff = online_osn_finish- circuit_psi_pre_finish;
+   std::cout<<"\n online OSN: "<<diff.count();
 
 
     //-------------------kkrt part ---------------------------
@@ -162,6 +180,10 @@ uint64_t run_psi_analytics(const std::vector<std::uint64_t> &inputs, PsiAnalytic
     for (int i=0; i < bins2.size(); ++i) 
       sendChl_pc.send(bins2.at(i).at(0));
 
+   const auto kkrt_finish = std::chrono::system_clock::now();
+   diff = kkrt_finish - online_osn_finish;
+   std::cout<<"\n kkrt: "<<diff.count();
+
     if (UNION) 
     {
       //std::cout<<"Computing Set Union: "<<std::endl;
@@ -187,14 +209,32 @@ uint64_t run_psi_analytics(const std::vector<std::uint64_t> &inputs, PsiAnalytic
       }
       ot_send(messages, context); 
 
+      const auto psu_finish = std::chrono::system_clock::now();
+      diff = psu_finish - kkrt_finish;
+      std::cout<<"\n Ot step cost for PSU: "<<diff.count();
+
+
     }
 
 
   } else {
 
 
+    const auto offline_osn_start = std::chrono::system_clock::now();
+
     std::vector<std::vector<uint64_t>> ret_masks = gen_benes_client_osn (values, context);
+
+    const auto offline_osn_end = std::chrono::system_clock::now();
+    diff = offline_osn_end - offline_osn_start;
+    std::cout<<"\n offline OSN: "<<diff.count();
+
+
     bins = OpprgPsiServer(inputs, context); // circuit-psi preprocessing
+
+    const auto circuit_psi_end = std::chrono::system_clock::now();
+    diff = circuit_psi_end - offline_osn_end;
+    std::cout<<"\n circuit psi: "<<diff.count();
+
 
     // --------------- Online OSN -----------------------------------------
     
@@ -225,6 +265,11 @@ uint64_t run_psi_analytics(const std::vector<std::uint64_t> &inputs, PsiAnalytic
     }
 
 
+    const auto online_osn_end = std::chrono::system_clock::now();
+    diff = online_osn_end - circuit_psi_end;
+    std::cout<<"\n online osn: "<<diff.count();
+
+
     // ------------------------ kkrt part ----------------------
     std::vector<uint64_t> bins2;
     bins2 = ot_receiver(output_masks, context);
@@ -243,13 +288,21 @@ uint64_t run_psi_analytics(const std::vector<std::uint64_t> &inputs, PsiAnalytic
       char_vec[i] = (recv_kkrt[i] == bins2[i]);
     }
 
-    std::cout<<"permuted characteristic vector: "<<char_vec<<std::endl;
+    //std::cout<<"permuted characteristic vector: "<<char_vec<<std::endl;
+
+    const auto kkrt_end = std::chrono::system_clock::now();
+    diff = kkrt_end - online_osn_end;
+    std::cout<<"\n kkrt: "<<diff.count();
+
 
     if (UNION) 
     {
       std::cout<<"Computing Set Union: "<<std::endl;
       std::vector<osuCrypto::block> recvMsg(char_vec.size());
       ot_recv(char_vec, recvMsg, context);
+      const auto psu_end = std::chrono::system_clock::now();
+      diff = psu_end - kkrt_end;
+      std::cout<<"\n psu ot step: "<<diff.count();
 
     }
 
