@@ -66,10 +66,6 @@ using duration_millis = std::chrono::duration<double, milliseconds_ratio>;
 
 uint64_t run_psi_analytics(const std::vector<std::uint64_t> &inputs, PsiAnalyticsContext &context) {
 
-  //std::cout<<"INPUT:\n";
-  //for (int i=0; i < inputs.size(); ++i) {
-  //  std::cout<<inputs[i]<<std::endl;
-  //}
 
   // establish network connection
   std::unique_ptr<CSocket> sock =
@@ -124,10 +120,12 @@ uint64_t run_psi_analytics(const std::vector<std::uint64_t> &inputs, PsiAnalytic
                         name);
     auto recvChl = ep.addChannel(name, name);
     //std::cout << "server side: received bins " << std::endl;
-    for (int i = 0; i <values; ++i) {
-      recvChl.recv(input_vec[i]);
-      //std::cout << i << " " << input_vec[i] << std::endl;
-    }
+    
+    //for (int i = 0; i <values; ++i) {
+    //  recvChl.recv(input_vec[i]);
+    //  //std::cout << i << " " << input_vec[i] << std::endl;
+    //}
+    recvChl.recv(input_vec.data(), input_vec.size());
 
     //output_vec = evaluate(N, input_vec);
     int N = int(ceil(log2(values)));
@@ -177,8 +175,13 @@ uint64_t run_psi_analytics(const std::vector<std::uint64_t> &inputs, PsiAnalytic
                         name);
     auto sendChl_pc = ep1.addChannel(name, name);
 
+    
+    std::vector<uint64_t> temp2;    
+
     for (int i=0; i < bins2.size(); ++i) 
-      sendChl_pc.send(bins2.at(i).at(0));
+      temp2.push_back(bins2.at(i).at(0));
+
+    sendChl_pc.asyncSend(temp2);
 
    const auto kkrt_finish = std::chrono::system_clock::now();
    diff = kkrt_finish - online_osn_finish;
@@ -250,14 +253,16 @@ uint64_t run_psi_analytics(const std::vector<std::uint64_t> &inputs, PsiAnalytic
                         name);
     auto sendChl = ep.addChannel(name, name);
 
-    std::vector<uint64_t> output_masks;
+    std::vector<uint64_t> output_masks, temp;
 
     //std::cout << "printing input  :: masked input " << std::endl;
+    
     for (int i = 0; i < values; ++i) { 
        //std::cout <<"check "<<i << std::endl;
-       sendChl.send(ret_masks[i][0]);
+      temp.push_back(ret_masks[i][0]);
     }
 
+    sendChl.asyncSend(temp);
     
     for (int i = 0; i < context.nbins; ++i) {
       output_masks.push_back(ret_masks[i][1]);
@@ -283,8 +288,9 @@ uint64_t run_psi_analytics(const std::vector<std::uint64_t> &inputs, PsiAnalytic
     auto recvChl_pc = ep1.addChannel(name, name);
 
 
+    recvChl_pc.recv(recv_kkrt.data(), recv_kkrt.size());
+
     for (int i=0; i < bins2.size();++i) {
-      recvChl_pc.recv(recv_kkrt[i]);
       char_vec[i] = (recv_kkrt[i] == bins2[i]);
     }
 
@@ -635,10 +641,13 @@ std::vector<osuCrypto::block> gen_benes_server_osn(int values, ENCRYPTO::PsiAnal
   auto recvChl_osn = ep.addChannel(name, name);
 
 
-  for (int i = 0; i < switches.size(); i++)  {
-    recvChl_osn.recv(recvCorr[i]);
-    //std::cout<<" receive correction block: "<<recvCorr[i]<<std::endl;
-  }
+  //for (int i = 0; i < switches.size(); i++)  {
+  //  recvChl_osn.recv(recvCorr[i]);
+  //  //std::cout<<" receive correction block: "<<recvCorr[i]<<std::endl;
+  //}
+  recvChl_osn.recv(recvCorr.data(), recvCorr.size());
+
+
   
   uint64_t temp_msg[2], temp_corr[2];
   for (int i = 0; i < recvMsg.size(); i++){
@@ -700,10 +709,12 @@ std::vector<std::vector<uint64_t>>  gen_benes_client_osn (int values, ENCRYPTO::
                         name);
   auto sendChl_osn = ep0.addChannel(name, name);
 
-  for (int i = 0; i < correction_blocks.size(); i++) {
-      //std::cout<<" sending correction block: "<<correction_blocks[i]<<std::endl;
-      sendChl_osn.send(correction_blocks[i]);
-  }
+  //for (int i = 0; i < correction_blocks.size(); i++) {
+  //    //std::cout<<" sending correction block: "<<correction_blocks[i]<<std::endl;
+  //    sendChl_osn.send(correction_blocks[i]);
+  //}
+  sendChl_osn.asyncSend(correction_blocks);
+
 
 
   for (int i= 0; i < values; ++i) {
