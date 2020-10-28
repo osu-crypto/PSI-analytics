@@ -54,6 +54,7 @@
 #include <bits/stdc++.h> 
 
 #define UNION 0
+#define PID 0
 
 namespace ENCRYPTO {
 
@@ -74,13 +75,16 @@ uint64_t run_psi_analytics(const std::vector<std::uint64_t> &inputs, PsiAnalytic
   const auto clock_time_total_start = std::chrono::system_clock::now();
 
   // create hash tables from the elements
-  std::vector<uint64_t> bins;
+  std::vector<uint64_t> inputs2(inputs), bins;
+
 
   // int N = int(ceil(log2(context.nbins)));    // Benes network has 2^N inputs
   int values = context.nbins;
 
   //std::chrono::duration<double> diff;
   duration_millis diff;
+
+  //for (int i=0; i <)
 
 
 
@@ -97,7 +101,22 @@ uint64_t run_psi_analytics(const std::vector<std::uint64_t> &inputs, PsiAnalytic
 
    std::cout<<"\n offline osn: "<<diff.count();
 
-    bins = OpprgPsiClient(inputs, context); // circuit-psi preprocessing 
+   if (PID) {
+
+      std::vector<std::vector<uint64_t>> _inputs(inputs2.size());
+      for (int i=0; i< inputs2.size(); ++i)
+        _inputs[i].push_back(inputs2[i]);
+      
+      std::vector<uint64_t> oprf_out1 = ot_receiver(inputs2, context);
+      context.port += 1;
+      auto oprf_out2 = ot_sender(_inputs, context);
+      context.port += 1;
+      for (int i=0; i < inputs2.size(); ++i)
+        inputs2[i] = oprf_out1[i] ^ oprf_out2[i][0];
+
+   }
+
+   bins = OpprgPsiClient(inputs2, context); // circuit-psi preprocessing 
 
    const auto circuit_psi_pre_finish = std::chrono::system_clock::now();
    diff = circuit_psi_pre_finish - offline_osn_finish;
@@ -187,7 +206,7 @@ uint64_t run_psi_analytics(const std::vector<std::uint64_t> &inputs, PsiAnalytic
    diff = kkrt_finish - online_osn_finish;
    std::cout<<"\n kkrt: "<<diff.count();
 
-    if (UNION) 
+    if (UNION || PID) 
     {
       //std::cout<<"Computing Set Union: "<<std::endl;
       ENCRYPTO::CuckooTable cuckoo_table(static_cast<std::size_t>(context.nbins));
@@ -214,7 +233,7 @@ uint64_t run_psi_analytics(const std::vector<std::uint64_t> &inputs, PsiAnalytic
 
       const auto psu_finish = std::chrono::system_clock::now();
       diff = psu_finish - kkrt_finish;
-      std::cout<<"\n Ot step cost for PSU: "<<diff.count();
+      std::cout<<"\n final OT step: "<<diff.count();
 
 
     }
@@ -231,8 +250,22 @@ uint64_t run_psi_analytics(const std::vector<std::uint64_t> &inputs, PsiAnalytic
     diff = offline_osn_end - offline_osn_start;
     std::cout<<"\n offline OSN: "<<diff.count();
 
+    if (PID) {
 
-    bins = OpprgPsiServer(inputs, context); // circuit-psi preprocessing
+      std::vector<std::vector<uint64_t>> _inputs(inputs2.size());
+      for (int i=0; i< inputs2.size(); ++i)
+        _inputs[i].push_back(inputs2[i]);
+      
+      auto oprf_out1 =  ot_sender(_inputs, context);
+      context.port += 1;
+      std::vector<uint64_t> oprf_out2 = ot_receiver(inputs2, context);
+      context.port += 1;
+      for (int i=0; i < inputs2.size(); ++i)
+        inputs2[i] = oprf_out1[i][0] ^ oprf_out2[i];
+
+   }
+
+    bins = OpprgPsiServer(inputs2, context); // circuit-psi preprocessing
 
     const auto circuit_psi_end = std::chrono::system_clock::now();
     diff = circuit_psi_end - offline_osn_end;
@@ -294,27 +327,25 @@ uint64_t run_psi_analytics(const std::vector<std::uint64_t> &inputs, PsiAnalytic
       char_vec[i] = (recv_kkrt[i] == bins2[i]);
     }
 
-    //std::cout<<"permuted characteristic vector: "<<char_vec<<std::endl;
+    std::cout<<"\n permuted characteristic vector: "<<char_vec<<std::endl;
 
     const auto kkrt_end = std::chrono::system_clock::now();
     diff = kkrt_end - online_osn_end;
     std::cout<<"\n kkrt: "<<diff.count();
+    // -------------------kkrt end -------------------------------- 
 
-
-    if (UNION) 
+    if (UNION || PID) 
     {
-      std::cout<<"Computing Set Union: "<<std::endl;
+      //std::cout<<"Computing Set Union: "<<std::endl;
       std::vector<osuCrypto::block> recvMsg(char_vec.size());
       ot_recv(char_vec, recvMsg, context);
       const auto psu_end = std::chrono::system_clock::now();
       diff = psu_end - kkrt_end;
-      std::cout<<"\n psu ot step: "<<diff.count();
+      std::cout<<"\n final ot step: "<<diff.count();
 
     }
 
-    
-    // -------------------kkrt end -------------------------------- 
-   
+       
   }
 
   const auto clock_time_total_end = std::chrono::system_clock::now();

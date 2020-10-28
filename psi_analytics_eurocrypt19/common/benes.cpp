@@ -8,7 +8,7 @@ using namespace std;
 
 #include <cryptoTools/Common/BitVector.h>
 
-const int max_dim = 15;
+const int max_dim = 19;
 
 static int perm[1 << max_dim];
 //static std::vector<char> perm(1 << max_dim);
