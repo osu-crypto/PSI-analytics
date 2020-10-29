@@ -59,11 +59,8 @@
 namespace ENCRYPTO {
 
 using share_ptr = std::shared_ptr<share>;
-
 using milliseconds_ratio = std::ratio<1, 1000>;
 using duration_millis = std::chrono::duration<double, milliseconds_ratio>;
-
-
 
 uint64_t run_psi_analytics(const std::vector<std::uint64_t> &inputs, PsiAnalyticsContext &context) {
 
@@ -73,35 +70,18 @@ uint64_t run_psi_analytics(const std::vector<std::uint64_t> &inputs, PsiAnalytic
       EstablishConnection(context.address, context.port, static_cast<e_role>(context.role));
   sock->Close();
   const auto clock_time_total_start = std::chrono::system_clock::now();
-
-  // create hash tables from the elements
   std::vector<uint64_t> inputs2(inputs), bins;
-
-
-  // int N = int(ceil(log2(context.nbins)));    // Benes network has 2^N inputs
   int values = context.nbins;
-
-  //std::chrono::duration<double> diff;
+  // int N = int(ceil(log2(context.nbins)));    // Benes network has 2^N inputs
   duration_millis diff;
 
-  //for (int i=0; i <)
-
-
-
   if (context.role == CLIENT) {
- 
-   const auto offline_osn_start = std::chrono::system_clock::now();
-   
+
+    //------------(a) osn pre-process---------------------
     std::vector<int> dest(values);
-
     std::vector<osuCrypto::block> ot_output = gen_benes_server_osn(values, context, dest);
-
-   const auto offline_osn_finish = std::chrono::system_clock::now();
-   diff = offline_osn_finish - offline_osn_start;
-
-   std::cout<<"\n offline osn: "<<diff.count();
-
-   if (PID) {
+    
+   if (PID) { 
 
       std::vector<std::vector<uint64_t>> _inputs(inputs2.size());
       for (int i=0; i< inputs2.size(); ++i)
@@ -116,97 +96,56 @@ uint64_t run_psi_analytics(const std::vector<std::uint64_t> &inputs, PsiAnalytic
 
    }
 
-   bins = OpprgPsiClient(inputs2, context); // circuit-psi preprocessing 
-
-   const auto circuit_psi_pre_finish = std::chrono::system_clock::now();
-   diff = circuit_psi_pre_finish - offline_osn_finish;
-   std::cout<<"\n circuit PSI proprocess: "<<diff.count();
-
+    //------------ (b) circuit-psi preprocessing------------
+    bins = OpprgPsiClient(inputs2, context);  
     std::vector<uint64_t> permuted_bins(values);
-
-    for (int i=0; i < values; ++i) {
-      //std::cout << "dest " << i << " " << dest[i] << std::endl; 
+    for (int i=0; i < values; ++i) 
       permuted_bins[i] = bins[dest[i]];
-    }
 
-   //--------------------- online OSN ----------------
-
-    std::vector<uint64_t> input_vec(values);
-
+    //----------------(c)online OSN -------------------------
     std::string name = "n";
     osuCrypto::IOService ios;
     osuCrypto::Session ep(ios, context.address, context.port + 2, osuCrypto::SessionMode::Server,
                         name);
     auto recvChl = ep.addChannel(name, name);
-    //std::cout << "server side: received bins " << std::endl;
-    
-    //for (int i = 0; i <values; ++i) {
-    //  recvChl.recv(input_vec[i]);
-    //  //std::cout << i << " " << input_vec[i] << std::endl;
-    //}
+    std::vector<uint64_t> input_vec(values);
     recvChl.recv(input_vec.data(), input_vec.size());
-
-    //output_vec = evaluate(N, input_vec);
+    // preparing OT outputs
     int N = int(ceil(log2(values)));
     int levels = 2*N-1;
-    // prepare OT outputs
     std::vector<std::vector<osuCrypto::block>> matrix_ot_output(levels, std::vector<osuCrypto::block>(values));
     int ctr = 0;
     for (int i=0; i < levels; ++ i) {
       for (int j=0; j < values/2; ++j)
         matrix_ot_output[i][j] = ot_output[ctr++];
     }
-
-
-
+    //output_vec = evaluate(N, input_vec); - for 2^n benes
     gen_benes_masked_evaluate(N, 0, 0, input_vec, matrix_ot_output);
 
-    //std::cout<<"size check: input_vec "<<input_vec.size()<<" permuted_bins "<<permuted_bins.size()<<std::endl;
-
-    //std::cout << "server side: output of benes " << std::endl;
-    //for (int i = 0; i < input_vec.size(); i++){
-    //  std::cout << "benes output xor permuted bins" << (input_vec[i] ^ permuted_bins[i]) << std::endl;
-    //}
-   
-   const auto online_osn_finish = std::chrono::system_clock::now();
-   diff = online_osn_finish- circuit_psi_pre_finish;
-   std::cout<<"\n online OSN: "<<diff.count();
-
-
-    //-------------------kkrt part ---------------------------
-    
-    // permute the bin vector
-
-    //std::cout<<"Entering KKRT component server side";
-    std::vector<std::vector<std::uint64_t>> bins2; 
-    std::vector<std::vector<std::uint64_t>> bins_input; 
+    //-----------------(d) kkrt part ---------------------------
+    const auto kkrt_start = std::chrono::system_clock::now();
+    std::vector<std::vector<std::uint64_t>> bins2, bins_input; 
     std::vector<std::uint64_t> temp; 
+    // permute the bin vector
     for (auto i = 0ull; i < bins.size(); ++i) { 
         temp.push_back(permuted_bins[i] ^ input_vec[i]);
         bins_input.push_back(temp);
         temp.erase(temp.begin(), temp.end());
     }
-
-    
-    bins2 = ot_sender(bins_input, context);
+    bins2 = ot_sender(bins_input, context); //kkrt call 
 
     osuCrypto::Session ep1(ios, context.address, context.port + 3, osuCrypto::SessionMode::Server,
                         name);
     auto sendChl_pc = ep1.addChannel(name, name);
-
-    
-    std::vector<uint64_t> temp2;    
-
-    for (int i=0; i < bins2.size(); ++i) 
-      temp2.push_back(bins2.at(i).at(0));
-
-    sendChl_pc.asyncSend(temp2);
+    for (int i=0; i < bins2.size(); ++i) //translating kkrt output into a single array and sending
+      temp.push_back(bins2.at(i).at(0));
+    sendChl_pc.asyncSend(temp); 
 
    const auto kkrt_finish = std::chrono::system_clock::now();
-   diff = kkrt_finish - online_osn_finish;
-   std::cout<<"\n kkrt: "<<diff.count();
+   diff = kkrt_finish - kkrt_start;
+   std::cout << "\n kkrt: " << diff.count();
 
-    if (UNION || PID) 
+    if (UNION || PID) // TO BE MOVED! - 1
     {
       //std::cout<<"Computing Set Union: "<<std::endl;
       ENCRYPTO::CuckooTable cuckoo_table(static_cast<std::size_t>(context.nbins));
@@ -227,110 +166,72 @@ uint64_t run_psi_analytics(const std::vector<std::uint64_t> &inputs, PsiAnalytic
       for (int i=0; i < cuckoo_table_v.size(); ++i) {
           messages[i].push_back(osuCrypto::toBlock(0, cuckoo_table_v[i]));
           messages[i].push_back(osuCrypto::toBlock(0, 0));
-
       }
       ot_send(messages, context); 
-
       const auto psu_finish = std::chrono::system_clock::now();
       diff = psu_finish - kkrt_finish;
       std::cout<<"\n final OT step: "<<diff.count();
-
-
     }
 
 
   } else {
 
-
-    const auto offline_osn_start = std::chrono::system_clock::now();
-
+    //------------(a) osn pre-process---------------------
     std::vector<std::vector<uint64_t>> ret_masks = gen_benes_client_osn (values, context);
 
-    const auto offline_osn_end = std::chrono::system_clock::now();
-    diff = offline_osn_end - offline_osn_start;
-    std::cout<<"\n offline OSN: "<<diff.count();
+      if (PID) {
 
-    if (PID) {
-
-      std::vector<std::vector<uint64_t>> _inputs(inputs2.size());
-      for (int i=0; i< inputs2.size(); ++i)
-        _inputs[i].push_back(inputs2[i]);
-      
-      auto oprf_out1 =  ot_sender(_inputs, context);
-      context.port += 1;
-      std::vector<uint64_t> oprf_out2 = ot_receiver(inputs2, context);
-      context.port += 1;
-      for (int i=0; i < inputs2.size(); ++i)
+        std::vector<std::vector<uint64_t>> _inputs(inputs2.size());
+        for (int i=0; i< inputs2.size(); ++i)
+          _inputs[i].push_back(inputs2[i]);
+        auto oprf_out1 =  ot_sender(_inputs, context);
+        context.port += 1;
+        std::vector<uint64_t> oprf_out2 = ot_receiver(inputs2, context);
+        context.port += 1;
+        for (int i=0; i < inputs2.size(); ++i)
         inputs2[i] = oprf_out1[i][0] ^ oprf_out2[i];
 
-   }
-
-    bins = OpprgPsiServer(inputs2, context); // circuit-psi preprocessing
-
-    const auto circuit_psi_end = std::chrono::system_clock::now();
-    diff = circuit_psi_end - offline_osn_end;
-    std::cout<<"\n circuit psi: "<<diff.count();
-
-
-    // --------------- Online OSN -----------------------------------------
+      }
     
-    for (int i = 0; i < bins.size(); ++i) {
-      //std::cout << "inputs masks " << ret_masks[i][0] << std::endl;
-      ret_masks[i][0] = ret_masks[i][0] ^ bins[i];
-      //std::cout << "masked input " << ret_masks[i][0] << std::endl;
-    }
+    //------------ (b) circuit-psi preprocessing------------
+    bins = OpprgPsiServer(inputs2, context); 
 
+    //---------------- (c) Online OSN -------------------------
+    const auto online_osn_start = std::chrono::system_clock::now();
     osuCrypto::IOService ios;
     std::string name = "n";
     osuCrypto::Session ep(ios, context.address, context.port + 2, osuCrypto::SessionMode::Client,
                         name);
     auto sendChl = ep.addChannel(name, name);
+    std::vector<uint64_t> output_masks, benes_input;
 
-    std::vector<uint64_t> output_masks, temp;
-
-    //std::cout << "printing input  :: masked input " << std::endl;
-    
-    for (int i = 0; i < values; ++i) { 
-       //std::cout <<"check "<<i << std::endl;
-      temp.push_back(ret_masks[i][0]);
-    }
-
-    sendChl.asyncSend(temp);
-    
-    for (int i = 0; i < context.nbins; ++i) {
+    for (int i = 0; i < bins.size(); ++i) 
+      ret_masks[i][0] = ret_masks[i][0] ^ bins[i];
+    for (int i = 0; i < values; ++i)
+      benes_input.push_back(ret_masks[i][0]);
+    sendChl.asyncSend(benes_input);
+    for (int i = 0; i < context.nbins; ++i)
       output_masks.push_back(ret_masks[i][1]);
-      //std::cout<<"output mask "<<output_masks[i]<<std::endl;
-    }
-
 
     const auto online_osn_end = std::chrono::system_clock::now();
-    diff = online_osn_end - circuit_psi_end;
-    std::cout<<"\n online osn: "<<diff.count();
-
+    diff = online_osn_end - online_osn_start;
+    std::cout << "\n online osn: " << diff.count();
 
     // ------------------------ kkrt part ----------------------
+    const auto kkrt_start = std::chrono::system_clock::now();
     std::vector<uint64_t> bins2;
-    bins2 = ot_receiver(output_masks, context);
-
-    std::vector<uint64_t> recv_kkrt(bins2.size());
-    osuCrypto::BitVector char_vec(bins2.size());
-
-
+    bins2 = ot_receiver(output_masks, context); //kkrt partx
     osuCrypto::Session ep1(ios, context.address, context.port + 3, osuCrypto::SessionMode::Client,
                         name);
     auto recvChl_pc = ep1.addChannel(name, name);
-
-
+    std::vector<uint64_t> recv_kkrt(bins2.size());
     recvChl_pc.recv(recv_kkrt.data(), recv_kkrt.size());
-
-    for (int i=0; i < bins2.size();++i) {
+    osuCrypto::BitVector char_vec(bins2.size());
+    for (int i=0; i < bins2.size();++i)
       char_vec[i] = (recv_kkrt[i] == bins2[i]);
-    }
-
-    std::cout<<"\n permuted characteristic vector: "<<char_vec<<std::endl;
 
     const auto kkrt_end = std::chrono::system_clock::now();
-    diff = kkrt_end - online_osn_end;
+    diff = kkrt_end - kkrt_start;
     std::cout<<"\n kkrt: "<<diff.count();
     // -------------------kkrt end -------------------------------- 
 
@@ -386,9 +287,6 @@ std::vector<osuCrypto::block> server_osn(int N, ENCRYPTO::PsiAnalyticsContext &c
   return recvMsg;
 }
 
-
-
-
 std::vector<osuCrypto::block> server_r_ot_osn(int N, ENCRYPTO::PsiAnalyticsContext &context, std::vector<int> &dest) {
 
   int temp;
@@ -416,10 +314,6 @@ std::vector<osuCrypto::block> server_r_ot_osn(int N, ENCRYPTO::PsiAnalyticsConte
   osuCrypto::block blk_msg, blk_corr, blk_temp; 
   std::vector<osuCrypto::block> recvMsg(switches.size()), recvCorr(switches.size()), CorrBlks(switches.size());
   rand_ot_recv(switches, recvMsg, context);
-  //for (int i = 0; i < switches.size(); i++)
-  //  std::cout << " switches : " << switches[i] << std::endl; 
-  //std::cout << "r ot : recvMsg " << recvMsg.size() << std::endl;
-  //std::cout << "ot: first block " << recvMsg[0] << std::endl;
 
   osuCrypto::IOService ios;
   std::string name = "n";
@@ -431,25 +325,125 @@ std::vector<osuCrypto::block> server_r_ot_osn(int N, ENCRYPTO::PsiAnalyticsConte
     recvChl_osn.recv(recvCorr[i]);
   
   for (int i = 0; i < recvMsg.size(); i++){
-      //std::cout << "ot message : " << recvMsg[i] << std::endl;
+      
       if (switches[i] == 1) {
-        //std::cout << "flag" << std::endl;
         memcpy(temp_corr, &recvCorr[i], sizeof(temp_corr)); 
         memcpy(temp_msg, &recvMsg[i], sizeof(temp_msg));
         temp_msg[0] = temp_corr[0] ^ temp_msg[0];
         temp_msg[1] = temp_corr[1] ^ temp_msg[1];
         blk_temp = osuCrypto::toBlock(temp_msg[1], temp_msg[0]); 
         recvMsg[i] = blk_temp;
-       // std::cout << " correction : " << recvMsg[i] << std::endl;
       }
 
   }
 
-  //for (int i = 0; i < recvMsg.size(); i++)
-  //  std::cout << "correction block " << recvMsg[i] << std::endl;
-  
   return recvMsg;
 }
+
+std::vector<std::vector<uint64_t>>  client_osn (int N, ENCRYPTO::PsiAnalyticsContext &context) { 
+  // assume we are getting the power of two value (N is power of 2)
+  int levels = 2 * N - 1; 
+  int values = 1 << N; 
+  int wires = levels + 1;  
+  uint64_t masks[values][wires];
+  osuCrypto::PRNG prng(_mm_set_epi32(4253233465, 334565, 0, 235)); // not sure what these parameters mean? fix according to what we need
+
+  for (int i = 0; i < wires; i++) {
+    for (int j = 0; j < values; j++) {
+      uint64_t temp = prng.get<uint64_t>();
+      masks[j][i] = temp; 
+    } 
+  }
+  
+  std::vector<std::vector<osuCrypto::block>> ot_messages;
+  int baseline_count = 1;
+  int size = values; 
+  int switch_count = values / 2; 
+  int baseline = 0; 
+  std::vector<osuCrypto::block> message_pair; 
+  uint64_t left, right; 
+  osuCrypto::block m0, m1; 
+
+  //--------------first half-----------------------------------------
+  for (int j = 0; j < levels / 2; j++){
+    baseline_count = pow(2, j);
+    size = values / baseline_count; // you have the size and can figure the baselines
+    for (int k = 0; k < baseline_count; k++) {
+      switch_count = size / 2; 
+      baseline = k * size; 
+      uint64_t temp_int[2];
+      uint64_t temp_int1[2];
+      for (int i = 0; i < switch_count; i++){
+          // m0 
+        left = masks[baseline + 2*i][j] ^ masks[baseline + i][j + 1];
+        right = masks[baseline + 2*i + 1][j] ^ masks[baseline + size / 2 + i][j + 1];
+        m0 = osuCrypto::toBlock(right, left);
+        message_pair.push_back(m0);
+          // m1
+        right = masks[baseline + 2*i + 1][j] ^ masks[baseline + i][j + 1]; 
+        left = masks[baseline + 2*i][j] ^ masks[baseline + size / 2 + i][j + 1];
+        m1 = osuCrypto::toBlock(right, left);
+        message_pair.push_back(m1); 
+        ot_messages.push_back(message_pair);
+        message_pair.clear(); 
+      }
+
+    }
+    
+  } 
+
+          //---------------------------middle layer---------------------------
+ for (int j = 0; j < values / 2; j++){
+    //m0
+    left = masks[2*j][levels / 2] ^ masks[2*j][levels / 2 + 1];
+    right = masks[2*j + 1][levels / 2] ^ masks[2*j + 1][levels / 2 + 1];
+    m0 = osuCrypto::toBlock(right, left);
+    message_pair.push_back(m0); 
+    //m1
+    left = masks[2*j][levels / 2] ^ masks[2*j + 1][levels / 2 + 1];
+    right = masks[2*j + 1][levels / 2] ^ masks[2*j][levels / 2 + 1];
+    m1 = osuCrypto::toBlock(right, left);
+    message_pair.push_back(m1); 
+    ot_messages.push_back(message_pair);
+    message_pair.clear(); 
+}
+        
+        //-----------------------------second half-------------------------------------
+  for(int i = levels / 2 + 1; i < levels; i++) { 
+    baseline_count = pow(2, levels - i - 1); // (levels - 1 - (j - 1))
+    size = values / baseline_count; // you have the size and can figure the baselines
+    
+    for (int k = 0; k < baseline_count; k++) {
+      baseline = k * size; 
+      switch_count = size / 2; 
+      for (int j = 0; j < switch_count; j++){
+        // m0
+        left = masks[baseline + j][i] ^ masks[baseline + 2 * j][i + 1];
+        right = masks[baseline + size / 2 + j][i] ^ masks[baseline + 2 * j + 1][i + 1];
+        
+        m0 = osuCrypto::toBlock(right, left);
+        // m1
+        left = masks[baseline + j][i] ^ masks[baseline + 2 * j + 1][i + 1];
+        right = masks[baseline + size / 2 + j][i] ^ masks[baseline + 2 * j][i + 1];
+        m1 = osuCrypto::toBlock(right, left);
+        message_pair.push_back(m0);
+        message_pair.push_back(m1); 
+        ot_messages.push_back(message_pair);
+        message_pair.clear(); 
+      }
+    }
+
+  } 
+  ot_send(ot_messages, context);
+  std::vector<std::vector<uint64_t>> ret_masks(values); // # of wire levels is one more than the # of switch levels
+  for (int i= 0; i < values; ++i) {
+    ret_masks[i].push_back(masks[i][0]);
+    ret_masks[i].push_back(masks[i][levels]);
+  }
+  return ret_masks;
+
+}
+
 
 void prepare_correction(int n, int Val, int lvl_p, int perm_idx, std::vector<uint64_t> &src, std::vector<std::array<osuCrypto::block,2>> &ot_output, std::vector<osuCrypto::block> &correction_blocks) {
 
@@ -641,7 +635,7 @@ void prepare_correction(int n, int Val, int lvl_p, int perm_idx, std::vector<uin
 }
 
 std::vector<osuCrypto::block> gen_benes_server_osn(int values, ENCRYPTO::PsiAnalyticsContext &context, std::vector<int> &dest) {
-
+  const auto offline_osn_start = std::chrono::system_clock::now();
   int temp;
   int m = context.nbins;
   std::vector<int> src(values);
@@ -672,10 +666,7 @@ std::vector<osuCrypto::block> gen_benes_server_osn(int values, ENCRYPTO::PsiAnal
   auto recvChl_osn = ep.addChannel(name, name);
 
 
-  //for (int i = 0; i < switches.size(); i++)  {
-  //  recvChl_osn.recv(recvCorr[i]);
-  //  //std::cout<<" receive correction block: "<<recvCorr[i]<<std::endl;
-  //}
+  
   recvChl_osn.recv(recvCorr.data(), recvCorr.size());
 
 
@@ -694,19 +685,16 @@ std::vector<osuCrypto::block> gen_benes_server_osn(int values, ENCRYPTO::PsiAnal
       }
   }
 
-  //std::cout<<"recvMsg:"<<std::endl;
-  //for (int i=0; i < recvMsg.size(); ++i) {
-  //  std::cout<<recvMsg[i]<<" "<<switches[i]<<std::endl;
-  //}
+  const auto offline_osn_finish = std::chrono::system_clock::now();
+  duration_millis diff = offline_osn_finish - offline_osn_start;
+  std::cout<<"\n offline osn: "<<diff.count();
 
   return recvMsg;
 }
 
-
-
-
 std::vector<std::vector<uint64_t>>  gen_benes_client_osn (int values, ENCRYPTO::PsiAnalyticsContext &context) { 
   
+  const auto offline_osn_start = std::chrono::system_clock::now();
   int N = int(ceil(log2(values)));
 
   int levels = 2*N-1;
@@ -751,164 +739,9 @@ std::vector<std::vector<uint64_t>>  gen_benes_client_osn (int values, ENCRYPTO::
   for (int i= 0; i < values; ++i) {
     ret_masks[i].push_back(masks[i]);
   }
-  return ret_masks;
-
-}
-
-std::vector<std::vector<uint64_t>>  client_osn (int N, ENCRYPTO::PsiAnalyticsContext &context) { 
-  // assume we are getting the power of two value
-  // if N is not a power of 2, fix accordingly for the generalized benes network
-  int levels = 2 * N - 1; 
-  int values = 1 << N; 
-  int wires = levels + 1;  
-  //uint64_t masks[values][wires]; // # of wire levels is one more than the # of switch levels
-  uint64_t masks[values][wires];
-  osuCrypto::PRNG prng(_mm_set_epi32(4253233465, 334565, 0, 235)); // not sure what these parameters mean? fix according to what we need
-
-  for (int i = 0; i < wires; i++) {
-    //std::cout << "i = " << i << std::endl; 
-    for (int j = 0; j < values; j++) {
-      uint64_t temp = prng.get<uint64_t>();
-      masks[j][i] = temp; 
-      //std::cout << "masks" << j << " "<< i << " "<<  masks[j][i] << std::endl; 
-    } 
-  }
-  
-  std::vector<std::vector<osuCrypto::block>> ot_messages;
-  int baseline_count = 1;
-  int size = values; 
-  int switch_count = values / 2; 
-  int baseline = 0; 
-  std::vector<osuCrypto::block> message_pair; 
-  uint64_t left, right; 
-  osuCrypto::block m0, m1; 
-  for (int j = 0; j < levels / 2; j++){
-    //std::cout << "you are on layer number = " << j << std::endl; 
-    baseline_count = pow(2, j);
-    size = values / baseline_count; // you have the size and can figure the baselines
-    for (int k = 0; k < baseline_count; k++) {
-      switch_count = size / 2; 
-      baseline = k * size; 
-      uint64_t temp_int[2];
-      uint64_t temp_int1[2];
-      for (int i = 0; i < switch_count; i++){
-          // m0 
-        left = masks[baseline + 2*i][j] ^ masks[baseline + i][j + 1];
-        right = masks[baseline + 2*i + 1][j] ^ masks[baseline + size / 2 + i][j + 1];
-        /*std::cout << "m0 = " << masks[baseline + 2*i][j] << std::endl;
-        std::cout << "w0 = " << masks[baseline + i][j + 1] << std::endl; 
-        std::cout << "left " << left << std::endl;
-        std::cout << "m1 = " << masks[baseline + 2*i + 1][j] << std::endl;
-        std::cout << "w1 = " << masks[baseline + size / 2 + i][j + 1] << std::endl; 
-        std::cout << "right " << right << std::endl;*/
-        m0 = osuCrypto::toBlock(right, left);
-       
-        message_pair.push_back(m0);
-        
-        
-          // m1
-        right = masks[baseline + 2*i + 1][j] ^ masks[baseline + i][j + 1]; 
-        left = masks[baseline + 2*i][j] ^ masks[baseline + size / 2 + i][j + 1];
-        /*std::cout << "m0 = " << masks[baseline + 2*i][j] << std::endl;
-        std::cout << "w1 = " << masks[baseline + size / 2 + i][j + 1] << std::endl; 
-        std::cout << "left " << left << std::endl;
-        std::cout << "m1 = " << masks[baseline + 2*i + 1][j] << std::endl;
-        std::cout << "w0 = " << masks[baseline + i][j + 1] << std::endl; 
-        std::cout << "right " << right << std::endl;*/
-        m1 = osuCrypto::toBlock(right, left);
-        message_pair.push_back(m1); 
-        /*if(j == 2 && i == 0) {
-          std::cout << "mp"  << message_pair.at(0) << std::endl; 
-          std::cout << "mp"  << message_pair.at(1) << std::endl; 
-        }*/
-         //std::cout << "ot messages: message_pair " << message_pair.at(0) << " message pair " << message_pair.at(1) << std::endl;
-        ot_messages.push_back(message_pair);
-        message_pair.clear(); 
-      }
-
-    }
-    
-  } 
-  /*std::cout << ot_messages.at(16).at(0) << std::endl;
-  std::cout << ot_messages.at(16).at(1) << std::endl;
-  std::cout << ot_messages.at(18).at(0) << std::endl;
-  std::cout << ot_messages.at(18).at(1) << std::endl;
-  std::cout << ot_messages.at(20).at(0) << std::endl;
-  std::cout << ot_messages.at(20).at(1) << std::endl;*/
-  /*std::cout << "a " << a << std::endl;
-    std::cout << "b " << b << std::endl;
-    std::cout << "c " << (a ^ b) << std::endl;
-    std::cout << "c " << (masks[0][0] ^ masks[0][2]) << std::endl;*/
-
-//---------------------------middle layer---------------------------
-
-//std::cout << "you are on layer number = " << (levels / 2) << std::endl; 
- for (int j = 0; j < values / 2; j++){
-    //m0
-    left = masks[2*j][levels / 2] ^ masks[2*j][levels / 2 + 1];
-    right = masks[2*j + 1][levels / 2] ^ masks[2*j + 1][levels / 2 + 1];
-    m0 = osuCrypto::toBlock(right, left);
-    message_pair.push_back(m0); 
-    //m1
-    left = masks[2*j][levels / 2] ^ masks[2*j + 1][levels / 2 + 1];
-    right = masks[2*j + 1][levels / 2] ^ masks[2*j][levels / 2 + 1];
-    m1 = osuCrypto::toBlock(right, left);
-    message_pair.push_back(m1); 
-    ot_messages.push_back(message_pair);
-    message_pair.clear(); 
-}
-        
-//--------------------------------------------------------------------------
-
-
-  
-  for(int i = levels / 2 + 1; i < levels; i++) {
-
-    //std::cout << "you are on level  = " << i << std::endl; 
-    baseline_count = pow(2, levels - i - 1); // (levels - 1 - (j - 1))
-    size = values / baseline_count; // you have the size and can figure the baselines
-    
-    for (int k = 0; k < baseline_count; k++) {
-      baseline = k * size; 
-      //std::cout << "baseline  = " << baseline << std::endl; 
-      switch_count = size / 2; 
-      //std::cout << "switch count = " << switch_count << std::endl; 
-      for (int j = 0; j < switch_count; j++){
-        // m0
-        left = masks[baseline + j][i] ^ masks[baseline + 2 * j][i + 1];
-        right = masks[baseline + size / 2 + j][i] ^ masks[baseline + 2 * j + 1][i + 1];
-        
-        m0 = osuCrypto::toBlock(right, left);
-        // m1
-        left = masks[baseline + j][i] ^ masks[baseline + 2 * j + 1][i + 1];
-        right = masks[baseline + size / 2 + j][i] ^ masks[baseline + 2 * j][i + 1];
-        //std::cout << "left " << left << std::endl;
-        //std::cout << "right " << right << std::endl;
-        m1 = osuCrypto::toBlock(right, left);
-
-        
-        message_pair.push_back(m0);
-        message_pair.push_back(m1); 
-        /*if(j == 0 && i == 4) {
-          std::cout << "mp"  << message_pair.at(0) << std::endl; 
-          std::cout << "mp"  << message_pair.at(1) << std::endl; 
-        }*/
-        ot_messages.push_back(message_pair);
-        message_pair.clear(); 
-      }
-    }
-
-  } 
-
-
-  ot_send(ot_messages, context);
-
-  std::vector<std::vector<uint64_t>> ret_masks(values); // # of wire levels is one more than the # of switch levels
-  for (int i= 0; i < values; ++i) {
-    ret_masks[i].push_back(masks[i][0]);
-    ret_masks[i].push_back(masks[i][levels]);
-  }
-
+  const auto offline_osn_finish = std::chrono::system_clock::now();
+  duration_millis diff = offline_osn_finish - offline_osn_start;
+  std::cout << "\n offline osn: " << diff.count();
   return ret_masks;
 
 }
@@ -992,7 +825,7 @@ std::vector<uint64_t> OpprgPsiClient(const std::vector<uint64_t> &elements,
   const auto end_time = std::chrono::system_clock::now();
   const duration_millis total_duration = end_time - start_time;
   context.timings.total = total_duration.count();
-
+  std::cout << "Client: circuit-psi " << total_duration.count() << std::endl; 
   return raw_bin_result;
 }
 
@@ -1061,7 +894,7 @@ std::vector<uint64_t> OpprgPsiServer(const std::vector<uint64_t> &elements,
   context.timings.polynomials_transmission = sending_duration.count();
   const auto end_time = std::chrono::system_clock::now();
   const duration_millis total_duration = end_time - start_time;
-
+  std::cout << "Server: circuit-psi pre-processing " << total_duration.count(); 
   return content_of_bins;
 }
 
@@ -1172,26 +1005,6 @@ void PrintTimings(const PsiAnalyticsContext &context) {
 }
 
 }
-
- /* ---------------------testing blocks and xor ------------------------
-  uint64_t dummy1[2];
-  dummy1[0] = masks[0][0];
-  dummy1[1] = masks[0][1];
-  std::cout << dummy1[0] << std::endl;
-  std::cout << dummy1[1] << std::endl; 
-  osuCrypto::block dummy2 = osuCrypto::toBlock(dummy1[0], dummy1[1]);
-  std::cout << "block " << dummy2 << std::endl; 
-  
-  // check 
-  uint64_t c = masks[0][0] ^ masks[0][1];
-  uint64_t b = c ^ masks[0][0];
-  uint64_t a = c ^ b; 
-  std::cout << masks[0][0] << std::endl;
-  std::cout << masks[0][1] << std::endl; 
-  std::cout << "c = " << c << std::endl; 
-  std::cout << "b = " << b << std::endl; 
-  std::cout << "a = " << a << std::endl; */
-
 
 
 
