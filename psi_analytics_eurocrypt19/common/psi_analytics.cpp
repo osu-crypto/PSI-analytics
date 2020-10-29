@@ -53,8 +53,6 @@
 
 #include <bits/stdc++.h> 
 
-#define UNION 0
-#define PID 0
 
 namespace ENCRYPTO {
 
@@ -74,14 +72,19 @@ uint64_t run_psi_analytics(const std::vector<std::uint64_t> &inputs, PsiAnalytic
   int values = context.nbins;
   // int N = int(ceil(log2(context.nbins)));    // Benes network has 2^N inputs
   duration_millis diff;
+  uint64_t output = 0;
 
   if (context.role == CLIENT) {
 
     //------------(a) osn pre-process---------------------
+    const auto offline_osn_start = std::chrono::system_clock::now();
     std::vector<int> dest(values);
     std::vector<osuCrypto::block> ot_output = gen_benes_server_osn(values, context, dest);
-    
-   if (PID) { 
+    const auto offline_osn_finish = std::chrono::system_clock::now();
+    diff = offline_osn_finish - offline_osn_start;
+    context.timings.offosn = diff.count();
+
+    if (context.analytics_type == ENCRYPTO::PsiAnalyticsContext::UNION) { 
 
       std::vector<std::vector<uint64_t>> _inputs(inputs2.size());
       for (int i=0; i< inputs2.size(); ++i)
@@ -97,12 +100,16 @@ uint64_t run_psi_analytics(const std::vector<std::uint64_t> &inputs, PsiAnalytic
    }
 
     //------------ (b) circuit-psi preprocessing------------
-    bins = OpprgPsiClient(inputs2, context);  
+    const auto psty_start = std::chrono::system_clock::now();
+    bins = OpprgPsiClient(inputs2, context); 
+    const auto psty_end = std::chrono::system_clock::now();
+    diff = psty_end - psty_start;
+    context.timings.psty = diff.count();
+    //----------------(c)online OSN -------------------------
     std::vector<uint64_t> permuted_bins(values);
     for (int i=0; i < values; ++i) 
       permuted_bins[i] = bins[dest[i]];
 
-    //----------------(c)online OSN -------------------------
     std::string name = "n";
     osuCrypto::IOService ios;
     osuCrypto::Session ep(ios, context.address, context.port + 2, osuCrypto::SessionMode::Server,
@@ -121,6 +128,10 @@ uint64_t run_psi_analytics(const std::vector<std::uint64_t> &inputs, PsiAnalytic
     }
     //output_vec = evaluate(N, input_vec); - for 2^n benes
     gen_benes_masked_evaluate(N, 0, 0, input_vec, matrix_ot_output);
+
+    const auto on_osn_end = std::chrono::system_clock::now();
+    diff = on_osn_end - psty_end;
+    context.timings.psty = diff.count();
 
     //-----------------(d) kkrt part ---------------------------
     const auto kkrt_start = std::chrono::system_clock::now();
@@ -143,9 +154,9 @@ uint64_t run_psi_analytics(const std::vector<std::uint64_t> &inputs, PsiAnalytic
 
    const auto kkrt_finish = std::chrono::system_clock::now();
    diff = kkrt_finish - kkrt_start;
-   std::cout << "\n kkrt: " << diff.count();
+   context.timings.kkrt = diff.count();
 
-    if (UNION || PID) // TO BE MOVED! - 1
+    if (context.analytics_type == ENCRYPTO::PsiAnalyticsContext::UNION || context.analytics_type == ENCRYPTO::PsiAnalyticsContext::PID) // TO BE MOVED! - 1
     {
       //std::cout<<"Computing Set Union: "<<std::endl;
       ENCRYPTO::CuckooTable cuckoo_table(static_cast<std::size_t>(context.nbins));
@@ -177,9 +188,13 @@ uint64_t run_psi_analytics(const std::vector<std::uint64_t> &inputs, PsiAnalytic
   } else {
 
     //------------(a) osn pre-process---------------------
+    const auto offline_osn_start = std::chrono::system_clock::now();
     std::vector<std::vector<uint64_t>> ret_masks = gen_benes_client_osn (values, context);
+    const auto offline_osn_end = std::chrono::system_clock::now();
+    diff = offline_osn_end - offline_osn_start;
+    context.timings.offosn = diff.count();
 
-      if (PID) {
+      if (context.analytics_type == ENCRYPTO::PsiAnalyticsContext::PID) {
 
         std::vector<std::vector<uint64_t>> _inputs(inputs2.size());
         for (int i=0; i< inputs2.size(); ++i)
@@ -194,10 +209,12 @@ uint64_t run_psi_analytics(const std::vector<std::uint64_t> &inputs, PsiAnalytic
       }
     
     //------------ (b) circuit-psi preprocessing------------
+    const auto circuit_psi_start = std::chrono::system_clock::now();
     bins = OpprgPsiServer(inputs2, context); 
-
+    const auto circuit_psi_end = std::chrono::system_clock::now();
+    diff = circuit_psi_end - offline_osn_end;
+    context.timings.psty = diff.count();
     //---------------- (c) Online OSN -------------------------
-    const auto online_osn_start = std::chrono::system_clock::now();
     osuCrypto::IOService ios;
     std::string name = "n";
     osuCrypto::Session ep(ios, context.address, context.port + 2, osuCrypto::SessionMode::Client,
@@ -214,8 +231,9 @@ uint64_t run_psi_analytics(const std::vector<std::uint64_t> &inputs, PsiAnalytic
       output_masks.push_back(ret_masks[i][1]);
 
     const auto online_osn_end = std::chrono::system_clock::now();
-    diff = online_osn_end - online_osn_start;
-    std::cout << "\n online osn: " << diff.count();
+    diff = online_osn_end - circuit_psi_end;
+    context.timings.onosn = diff.count();
+
 
     // ------------------------ kkrt part ----------------------
     const auto kkrt_start = std::chrono::system_clock::now();
@@ -227,17 +245,21 @@ uint64_t run_psi_analytics(const std::vector<std::uint64_t> &inputs, PsiAnalytic
     std::vector<uint64_t> recv_kkrt(bins2.size());
     recvChl_pc.recv(recv_kkrt.data(), recv_kkrt.size());
     osuCrypto::BitVector char_vec(bins2.size());
-    for (int i=0; i < bins2.size();++i)
-      char_vec[i] = (recv_kkrt[i] == bins2[i]);
+    for (int i=0; i < bins2.size();++i) {
+      if (recv_kkrt[i] == bins2[i]) {
+        char_vec[i] = 1;
+        output++;
+      }
+    }
 
     const auto kkrt_end = std::chrono::system_clock::now();
     diff = kkrt_end - kkrt_start;
-    std::cout<<"\n kkrt: "<<diff.count();
+    context.timings.kkrt = diff.count();
+
     // -------------------kkrt end -------------------------------- 
 
-    if (UNION || PID) 
+    if (context.analytics_type == ENCRYPTO::PsiAnalyticsContext::UNION || context.analytics_type == ENCRYPTO::PsiAnalyticsContext::PID) 
     {
-      //std::cout<<"Computing Set Union: "<<std::endl;
       std::vector<osuCrypto::block> recvMsg(char_vec.size());
       ot_recv(char_vec, recvMsg, context);
       const auto psu_end = std::chrono::system_clock::now();
@@ -252,8 +274,8 @@ uint64_t run_psi_analytics(const std::vector<std::uint64_t> &inputs, PsiAnalytic
   const auto clock_time_total_end = std::chrono::system_clock::now();
   const duration_millis clock_time_total_duration = clock_time_total_end - clock_time_total_start;
   context.timings.total = clock_time_total_duration.count();
-
-  uint64_t output = 0; 
+  
+  PrintTimings(context);
   return output;
 }
 
@@ -687,7 +709,7 @@ std::vector<osuCrypto::block> gen_benes_server_osn(int values, ENCRYPTO::PsiAnal
 
   const auto offline_osn_finish = std::chrono::system_clock::now();
   duration_millis diff = offline_osn_finish - offline_osn_start;
-  std::cout<<"\n offline osn: "<<diff.count();
+  //std::cout<<"\n offline osn: "<<diff.count();
 
   return recvMsg;
 }
@@ -741,7 +763,7 @@ std::vector<std::vector<uint64_t>>  gen_benes_client_osn (int values, ENCRYPTO::
   }
   const auto offline_osn_finish = std::chrono::system_clock::now();
   duration_millis diff = offline_osn_finish - offline_osn_start;
-  std::cout << "\n offline osn: " << diff.count();
+  //std::cout << "\n offline osn: " << diff.count();
   return ret_masks;
 
 }
@@ -825,7 +847,7 @@ std::vector<uint64_t> OpprgPsiClient(const std::vector<uint64_t> &elements,
   const auto end_time = std::chrono::system_clock::now();
   const duration_millis total_duration = end_time - start_time;
   context.timings.total = total_duration.count();
-  std::cout << "Client: circuit-psi " << total_duration.count() << std::endl; 
+  //std::cout << "Client: circuit-psi " << total_duration.count() << std::endl; 
   return raw_bin_result;
 }
 
@@ -894,7 +916,7 @@ std::vector<uint64_t> OpprgPsiServer(const std::vector<uint64_t> &elements,
   context.timings.polynomials_transmission = sending_duration.count();
   const auto end_time = std::chrono::system_clock::now();
   const duration_millis total_duration = end_time - start_time;
-  std::cout << "Server: circuit-psi pre-processing " << total_duration.count(); 
+  //std::cout << "Server: circuit-psi pre-processing " << total_duration.count(); 
   return content_of_bins;
 }
 
@@ -986,22 +1008,14 @@ std::size_t PlainIntersectionSize(std::vector<std::uint64_t> v1, std::vector<std
 }
 
 void PrintTimings(const PsiAnalyticsContext &context) {
-  std::cout << "Time for hashing " << context.timings.hashing << " ms\n";
-  std::cout << "Time for OPRF " << context.timings.oprf << " ms\n";
-  std::cout << "Time for polynomials " << context.timings.polynomials << " ms\n";
-  std::cout << "Time for transmission of the polynomials "
-            << context.timings.polynomials_transmission << " ms\n";
-//  std::cout << "Time for OPPRF " << context.timings.opprf << " ms\n";
+  std::cout << "\nTime for offline OSN " << context.timings.offosn << " ms\n";
+  std::cout << "Time for PSTY preprocess " << context.timings.psty << " ms\n";
+  std::cout << "Time for online OSN " << context.timings.onosn << " ms\n";
+  std::cout << "Time for kkrt "
+            << context.timings.kkrt << " ms\n";
 
- /* std::cout << "ABY timings: online time " << context.timings.aby_online << " ms, setup time "
-            << context.timings.aby_setup << " ms, total time " << context.timings.aby_total
-            << " ms\n";
-*/
   std::cout << "Total runtime: " << context.timings.total << "ms\n";
- /* std::cout << "Total runtime w/o base OTs: "
-            << context.timings.total - context.timings.base_ots_aby -
-                   context.timings.base_ots_libote
-            << "ms\n";*/
+
 }
 
 }

@@ -68,7 +68,12 @@ auto read_test_options(int32_t argcp, char **argvp) {
     context.analytics_type = ENCRYPTO::PsiAnalyticsContext::SUM;
   } else if (type.compare("SumIfGtThreshold") == 0) {
     context.analytics_type = ENCRYPTO::PsiAnalyticsContext::SUM_IF_GT_THRESHOLD;
-  } else {
+  } else if (type.compare("Union") == 0) {
+    context.analytics_type = ENCRYPTO::PsiAnalyticsContext::UNION;
+  } else if (type.compare("PID") == 0) {
+    context.analytics_type = ENCRYPTO::PsiAnalyticsContext::PID;
+  }
+    else {
     std::string error_msg(std::string("Unknown function type: " + type));
     throw std::runtime_error(error_msg.c_str());
   }

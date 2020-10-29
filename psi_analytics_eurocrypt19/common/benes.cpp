@@ -8,7 +8,7 @@ using namespace std;
 
 #include <cryptoTools/Common/BitVector.h>
 
-const int max_dim = 19;
+const int max_dim = 21;
 
 static int perm[1 << max_dim];
 //static std::vector<char> perm(1 << max_dim);
@@ -137,12 +137,9 @@ void benes_route(int n, int lvl_p, int perm_idx, const vector<int> &src, const v
 void f_propagate (int size, int baseline, int level, vector<uint64_t> &source, vector<uint64_t> &dest) {
   //std::cout << "in fwd propagate " << std::endl; 
   int switch_count = size / 2;
-  //osuCrypto::block temp_block; 
-  //uint64_t temp_int[2]; 
+ 
   for (int j = 0; j < switch_count; j++){
-      //temp_block = ot_msgs.at(0);
-      //ot_msgs.erase(ot_msgs.begin());
-      //memcpy(temp_int, &temp_block, sizeof(temp_int));
+      
       if (switched[level][baseline / 2 + j] == 0) {
         dest[baseline + j] = source[baseline + 2*j];
         dest[baseline + size / 2 + j] = source[baseline + 2*j + 1];
@@ -173,11 +170,6 @@ void r_propagate (int size, int baseline, int level, vector<uint64_t> &source, v
         dest[baseline + 2 * j + 1] = source[baseline + j];
       }
   }
-
-  /*std::cout << "We are in level: " << level << std::endl; 
-  for (int i = 0; i < size; i ++){
-    std::cout << "source" << source[baseline + i] << " " << dest[baseline + i] << std::endl; 
-  }*/
 
 }
 
@@ -221,26 +213,13 @@ void rev_propagate (int size, int baseline, int level, vector<uint64_t> &source,
       if (switched[level][baseline / 2 + j] == 0) {
         dest[baseline + 2 * j] = source[baseline + j] ^ temp_int[0];
         dest[baseline + 2 * j + 1] = source[baseline + size / 2 + j] ^ temp_int[1];
-        /*std::cout << "m0 xor w0 " << temp_int[0] << std::endl;
-        std::cout << "m1 xor w1 " << temp_int[1] << std::endl;
-        std::cout << "in benes: output wire 0 " << dest[baseline + 2 * j] << std::endl;
-        std::cout << "in benes: output wire 1 " << dest[baseline + 2 * j + 1] << std::endl;*/
+
       }
       else {
         dest[baseline + 2 * j] = source[baseline + size / 2 + j] ^ temp_int[1];
         dest[baseline + 2 * j + 1] = source[baseline + j] ^ temp_int[0];
-        /*std::cout << "flip" << std::endl;
-        std::cout << "m0 xor w1 " << temp_int[0] << std::endl;
-        std::cout << "m1 xor w0 " << temp_int[1] << std::endl;
-        std::cout << "in benes: output wire 0 " << dest[baseline + 2 * j] << std::endl;
-        std::cout << "in benes: output wire 1 " << dest[baseline + 2 * j + 1] << std::endl;*/
       }
   }
-
-  /*std::cout << "We are in level: " << level << std::endl; 
-  for (int i = 0; i < size; i ++){
-    std::cout << "source" << source[baseline + i] << " " << dest[baseline + i] << std::endl; 
-  }*/
 
 }
 
@@ -252,10 +231,7 @@ vector<uint64_t> masked_evaluate (int N, vector<uint64_t> &inputs, vector<osuCry
     int size = values;
     int baseline_count = 1; 
     vector<uint64_t> temp(inputs.size());
-    //cout << "size of ot_output " << ot_output.size() << std::endl;
     vector<osuCrypto::block> ot_masks = ot_output; 
-    //std::cout << "first ot message" << ot_masks.at(0) << std::endl; 
-    //std::cout << "second message ot" << ot_masks.at(1) << std::endl;
     int toggle = 0; 
     //forward 
     for (int j = 0; j < levels / 2; j++){
