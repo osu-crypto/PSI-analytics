@@ -45,14 +45,19 @@ auto CreateContext(e_role role, uint64_t neles, uint64_t polynomialsize, uint64_
 void PsiAnalyticsCardinalityTest(std::size_t elem_bitlen, uint64_t neles, uint64_t polynomialsize,
                       uint64_t nmegabins) {
   
+  
+
   auto client_context = CreateContext(CLIENT, neles, polynomialsize, nmegabins);
   auto server_context = CreateContext(SERVER, neles, polynomialsize, nmegabins);
 
-  auto client_inputs = ENCRYPTO::GeneratePseudoRandomElements(client_context.neles, 15);
-  auto server_inputs = ENCRYPTO::GeneratePseudoRandomElements(server_context.neles, 15);
+
+  auto client_inputs = ENCRYPTO::GeneratePseudoRandomElements(client_context.neles, 61, 1);
+  auto server_inputs = ENCRYPTO::GeneratePseudoRandomElements(server_context.neles, 61, 2);
   for (int i=0; i < neles/2; ++i)
     client_inputs[i] = server_inputs[i];
   auto plain_intersection_size = ENCRYPTO::PlainIntersectionSize(client_inputs, server_inputs);
+
+
 
   std::uint64_t psi_client, psi_server;
 
@@ -78,8 +83,8 @@ void PsiAnalyticsUnionTest(std::size_t elem_bitlen, uint64_t neles, uint64_t pol
   client_context.analytics_type = ENCRYPTO::PsiAnalyticsContext::UNION ;
   server_context.analytics_type = ENCRYPTO::PsiAnalyticsContext::UNION ;
 
-  auto client_inputs = ENCRYPTO::GeneratePseudoRandomElements(client_context.neles, 15, 1);
-  auto server_inputs = ENCRYPTO::GeneratePseudoRandomElements(server_context.neles, 15, 2);
+  auto client_inputs = ENCRYPTO::GeneratePseudoRandomElements(client_context.neles, 61, 1);
+  auto server_inputs = ENCRYPTO::GeneratePseudoRandomElements(server_context.neles, 61, 2);
   for (int i=0; i < neles/2; ++i)
     client_inputs[i] = server_inputs[i];
   auto plain_intersection_size = ENCRYPTO::PlainIntersectionSize(client_inputs, server_inputs);
@@ -95,6 +100,8 @@ void PsiAnalyticsUnionTest(std::size_t elem_bitlen, uint64_t neles, uint64_t pol
     client_thread.join();
     server_thread.join();
 
+    ASSERT_EQ(psi_server, plain_intersection_size);
+
   }
 
 }
@@ -108,8 +115,8 @@ void PsiAnalyticsPIDTest(std::size_t elem_bitlen, uint64_t neles, uint64_t polyn
   client_context.analytics_type = ENCRYPTO::PsiAnalyticsContext::PID ;
   server_context.analytics_type = ENCRYPTO::PsiAnalyticsContext::PID ;
 
-  auto client_inputs = ENCRYPTO::GeneratePseudoRandomElements(client_context.neles, 15, 1);
-  auto server_inputs = ENCRYPTO::GeneratePseudoRandomElements(server_context.neles, 15, 2);
+  auto client_inputs = ENCRYPTO::GeneratePseudoRandomElements(client_context.neles, 61, 1);
+  auto server_inputs = ENCRYPTO::GeneratePseudoRandomElements(server_context.neles, 61, 2);
   for (int i=0; i < neles/2; ++i)
     client_inputs[i] = server_inputs[i];
   auto plain_intersection_size = ENCRYPTO::PlainIntersectionSize(client_inputs, server_inputs);
@@ -133,36 +140,49 @@ void PsiAnalyticsPIDTest(std::size_t elem_bitlen, uint64_t neles, uint64_t polyn
 
 
 TEST(PSI_ANALYTICS, pow_2_12) {
+
   for (auto i = 0ull; i < ITERATIONS; ++i) {
     PsiAnalyticsCardinalityTest(61, NELES_2_12, POLYNOMIALSIZE_2_12, NMEGABINS_2_12);
   }
 }
 
 
-/*
+
 TEST(PSI_ANALYTICS, union_pow_2_12) {
   for (auto i = 0ull; i < ITERATIONS; ++i) {
     PsiAnalyticsUnionTest(61, NELES_2_12, POLYNOMIALSIZE_2_12, NMEGABINS_2_12);
   }
 }
-*/
 
-/*
+
+
 TEST(PSI_ANALYTICS, pid_pow_2_12) {
   for (auto i = 0ull; i < ITERATIONS; ++i) {
     PsiAnalyticsPIDTest(61, NELES_2_12, POLYNOMIALSIZE_2_12, NMEGABINS_2_12);
   }
 }
-*/
 
 
-/*
+
+
 TEST(PSI_ANALYTICS, pow_2_16) {
   for (auto i = 0ull; i < ITERATIONS; ++i) {
     PsiAnalyticsCardinalityTest(61, NELES_2_16, POLYNOMIALSIZE_2_16, NMEGABINS_2_16);
-  }
+  } 
 }
-*/
+
+TEST(PSI_ANALYTICS, union_pow_2_16) {
+  for (auto i = 0ull; i < ITERATIONS; ++i) {
+    PsiAnalyticsUnionTest(61, NELES_2_16, POLYNOMIALSIZE_2_16, NMEGABINS_2_16);
+  } 
+}
+
+TEST(PSI_ANALYTICS, pid_pow_2_16) {
+  for (auto i = 0ull; i < ITERATIONS; ++i) {
+    PsiAnalyticsPIDTest(61, NELES_2_16, POLYNOMIALSIZE_2_16, NMEGABINS_2_16);
+  } 
+}
+
 
 
 int main(int argc, char **argv) {

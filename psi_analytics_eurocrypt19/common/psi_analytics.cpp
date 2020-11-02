@@ -84,7 +84,7 @@ uint64_t run_psi_analytics(const std::vector<std::uint64_t> &inputs, PsiAnalytic
     diff = offline_osn_finish - offline_osn_start;
     context.timings.offosn = diff.count();
 
-    if (context.analytics_type == ENCRYPTO::PsiAnalyticsContext::UNION) { 
+    if (context.analytics_type == ENCRYPTO::PsiAnalyticsContext::PID) { 
 
       std::vector<std::vector<uint64_t>> _inputs(inputs2.size());
       for (int i=0; i< inputs2.size(); ++i)
@@ -158,7 +158,7 @@ uint64_t run_psi_analytics(const std::vector<std::uint64_t> &inputs, PsiAnalytic
 
     if (context.analytics_type == ENCRYPTO::PsiAnalyticsContext::UNION || context.analytics_type == ENCRYPTO::PsiAnalyticsContext::PID) // TO BE MOVED! - 1
     {
-      //std::cout<<"Computing Set Union: "<<std::endl;
+      std::cout<<"Computing Set Union: "<<std::endl;
       ENCRYPTO::CuckooTable cuckoo_table(static_cast<std::size_t>(context.nbins));
       cuckoo_table.SetNumOfHashFunctions(context.nfuns);
       std::vector<uint64_t> inputs_copy;
@@ -733,9 +733,13 @@ std::vector<std::vector<uint64_t>>  gen_benes_client_osn (int values, ENCRYPTO::
       ret_masks[j].push_back(temp);
   } 
   
+  const auto rand_ot_start = std::chrono::system_clock::now();
   std::vector<std::array<osuCrypto::block,2>> ot_messages(switches);
   rand_ot_send(ot_messages, context); //sample random ot blocks
-  
+  const auto rand_ot_end = std::chrono::system_clock::now();
+  duration_millis diff = rand_ot_end - rand_ot_start;
+  std::cout << "random OT cost: " << diff.count();
+
   std::vector<osuCrypto::block> correction_blocks(switches); 
   
   prepare_correction(N, values, 0, 0, masks, ot_messages, correction_blocks);
@@ -762,7 +766,7 @@ std::vector<std::vector<uint64_t>>  gen_benes_client_osn (int values, ENCRYPTO::
     ret_masks[i].push_back(masks[i]);
   }
   const auto offline_osn_finish = std::chrono::system_clock::now();
-  duration_millis diff = offline_osn_finish - offline_osn_start;
+  diff = offline_osn_finish - offline_osn_start;
   //std::cout << "\n offline osn: " << diff.count();
   return ret_masks;
 
