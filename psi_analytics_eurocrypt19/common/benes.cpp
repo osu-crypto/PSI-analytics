@@ -4,6 +4,7 @@
 #include <vector>
 #include <iostream>
 #include <math.h>
+#include <bits/stdc++.h> 
 using namespace std;
 
 #include <cryptoTools/Common/BitVector.h>
@@ -40,16 +41,21 @@ osuCrypto::BitVector return_switches(int N) {
 
 void DFS(int idx, int route) {
 
-  //std::cout << "entered the dfs function_call ()" << std::endl; 
-  path[idx] = route;
+  stack<pair<int, int> > st; 
+  st.push({idx,route});
+  pair<int, int> pr;
+  while (!st.empty()) {
+    pr = st.top();
+    st.pop();
+    path[pr.first] = pr.second;
+    if (path[pr.first ^ 1] < 0) // if the next item in the vertical array is unassigned 
+      st.push({pr.first ^ 1, pr.second ^ 1}); /// the next item is always assigned the opposite of this item, unless it was part of path/cycle of previous node
 
-  if (path[idx ^ 1] < 0) // if the next item in the vertical array is unassigned 
-  	DFS(idx ^ 1, route ^ 1); /// the next item is always assigned the opposite of this item, unless it was part of path/cycle of previous node
-
-  idx = perm[inv_perm[idx] ^ 1]; // inv_perm[idx] - gives the position of the output, idx connects to?
- 
-  if (path[idx] < 0)
-  	DFS(idx, route ^ 1);
+    idx = perm[inv_perm[pr.first] ^ 1];
+    if (path[idx] < 0)
+    st.push({idx, pr.second ^ 1});
+  } 
+  
 }
 
 int shuffle(int i, int n) { 

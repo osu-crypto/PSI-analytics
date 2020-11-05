@@ -172,6 +172,9 @@ uint64_t run_psi_analytics(const std::vector<std::uint64_t> &inputs, PsiAnalytic
         if (!std::binary_search(inputs_copy.begin(), inputs_copy.end(), cuckoo_table_v[i]))
             cuckoo_table_v[i] = 0;
       }
+      std::cout<<"cuckoo table"<<std::endl;
+      for (int i=0; i < cuckoo_table_v.size(); ++i)
+        std::cout<<cuckoo_table_v[i]<<std::endl;
 
       std::vector<std::vector<osuCrypto::block>> messages(cuckoo_table_v.size());
       for (int i=0; i < cuckoo_table_v.size(); ++i) {
@@ -258,10 +261,21 @@ uint64_t run_psi_analytics(const std::vector<std::uint64_t> &inputs, PsiAnalytic
 
     // -------------------kkrt end -------------------------------- 
 
+    std::vector<uint64_t> rcvMsgUnion;
     if (context.analytics_type == ENCRYPTO::PsiAnalyticsContext::UNION || context.analytics_type == ENCRYPTO::PsiAnalyticsContext::PID) 
     {
       std::vector<osuCrypto::block> recvMsg(char_vec.size());
       ot_recv(char_vec, recvMsg, context);
+      uint64_t ot_msg[2];
+      for (int i=0; i < recvMsg.size(); ++i) {
+        memcpy(ot_msg, &recvMsg[i], sizeof(ot_msg)); 
+        std::cout<<"\n check: "<<ot_msg[0]<<" "<<ot_msg[1];
+        if (ot_msg[0] != 0)
+          rcvMsgUnion.push_back(ot_msg[0]);
+      }
+      output =  rcvMsgUnion.size() + inputs2.size();
+
+
       const auto psu_end = std::chrono::system_clock::now();
       diff = psu_end - kkrt_end;
       std::cout<<"\n final ot step: "<<diff.count();

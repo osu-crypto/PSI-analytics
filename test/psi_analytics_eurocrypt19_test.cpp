@@ -8,6 +8,8 @@
 // \copyright The MIT License. Copyright Oleksandr Tkachenko
 
 #include <thread>
+#include <stdlib.h>
+#include <time.h>
 
 #include "gtest/gtest.h"
 
@@ -77,7 +79,7 @@ void PsiAnalyticsCardinalityTest(std::size_t elem_bitlen, uint64_t neles, uint64
 
 void PsiAnalyticsUnionTest(std::size_t elem_bitlen, uint64_t neles, uint64_t polynomialsize,
                       uint64_t nmegabins) {
-  
+  neles = 10;
   auto client_context = CreateContext(CLIENT, neles, polynomialsize, nmegabins);
   auto server_context = CreateContext(SERVER, neles, polynomialsize, nmegabins);
   client_context.analytics_type = ENCRYPTO::PsiAnalyticsContext::UNION ;
@@ -85,8 +87,19 @@ void PsiAnalyticsUnionTest(std::size_t elem_bitlen, uint64_t neles, uint64_t pol
 
   auto client_inputs = ENCRYPTO::GeneratePseudoRandomElements(client_context.neles, 61, 1);
   auto server_inputs = ENCRYPTO::GeneratePseudoRandomElements(server_context.neles, 61, 2);
-  for (int i=0; i < neles/2; ++i)
+  srand (time(NULL));
+  uint64_t r = rand() % (neles/2) + 1;
+  for (int i=0; i < r; ++i)
     client_inputs[i] = server_inputs[i];
+
+  std::cout<<"\n the r = "<<r<<" neles = "<<neles;
+  std::cout<<"client input"<<std::endl;
+  for (int i=0; i < client_inputs.size(); ++i)
+    std::cout<<client_inputs[i]<<std::endl;
+  std::cout<<"server input"<<std::endl;
+  for (int i=0; i < server_inputs.size(); ++i)
+    std::cout<<server_inputs[i]<<std::endl;
+  std::cout<<std::endl;
   auto plain_intersection_size = ENCRYPTO::PlainIntersectionSize(client_inputs, server_inputs);
 
   std::uint64_t psi_client, psi_server;
@@ -100,7 +113,7 @@ void PsiAnalyticsUnionTest(std::size_t elem_bitlen, uint64_t neles, uint64_t pol
     client_thread.join();
     server_thread.join();
 
-    ASSERT_EQ(psi_server, plain_intersection_size);
+    ASSERT_EQ(psi_server, server_inputs.size()+client_inputs.size()-r);
 
   }
 
@@ -146,8 +159,20 @@ TEST(PSI_ANALYTICS, pow_2_12) {
   }
 }
 
+TEST(PSI_ANALYTICS, pow_2_16) {
+  for (auto i = 0ull; i < ITERATIONS; ++i) {
+    PsiAnalyticsCardinalityTest(61, NELES_2_16, POLYNOMIALSIZE_2_16, NMEGABINS_2_16);
+  } 
+}
+
+TEST(PSI_ANALYTICS, pow_2_20) {
+  for (auto i = 0ull; i < ITERATIONS; ++i) {
+    PsiAnalyticsCardinalityTest(61, NELES_2_20, POLYNOMIALSIZE_2_20, NMEGABINS_2_20);
+  } 
+}
 
 
+/*
 TEST(PSI_ANALYTICS, union_pow_2_12) {
   for (auto i = 0ull; i < ITERATIONS; ++i) {
     PsiAnalyticsUnionTest(61, NELES_2_12, POLYNOMIALSIZE_2_12, NMEGABINS_2_12);
@@ -164,13 +189,6 @@ TEST(PSI_ANALYTICS, pid_pow_2_12) {
 
 
 
-
-TEST(PSI_ANALYTICS, pow_2_16) {
-  for (auto i = 0ull; i < ITERATIONS; ++i) {
-    PsiAnalyticsCardinalityTest(61, NELES_2_16, POLYNOMIALSIZE_2_16, NMEGABINS_2_16);
-  } 
-}
-
 TEST(PSI_ANALYTICS, union_pow_2_16) {
   for (auto i = 0ull; i < ITERATIONS; ++i) {
     PsiAnalyticsUnionTest(61, NELES_2_16, POLYNOMIALSIZE_2_16, NMEGABINS_2_16);
@@ -184,6 +202,7 @@ TEST(PSI_ANALYTICS, pid_pow_2_16) {
 }
 
 
+*/
 
 int main(int argc, char **argv) {
   testing::InitGoogleTest(&argc, argv);

@@ -30,7 +30,7 @@ target_compile_options(psi_analytics_eurocrypt19
         -march=native
         -ffunction-sections -mpclmul -mbmi2 -maes
         -mavx -msse2 -msse3 -msse4.1
-        -Wall -Wno-strict-overflow -Wno-ignored-attributes -Wno-parentheses)
+        -Wall -g3 -Wno-strict-overflow -Wno-ignored-attributes -Wno-parentheses)
 
 target_link_libraries(psi_analytics_eurocrypt19 INTERFACE
         ABY::aby
