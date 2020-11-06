@@ -691,13 +691,22 @@ std::vector<osuCrypto::block> gen_benes_server_osn(int values, ENCRYPTO::PsiAnal
   gen_benes_route(N, 0, 0, src, dest);
   //osuCrypto::u64 len = n;
   osuCrypto::BitVector switches = return_gen_benes_switches(values);
+  osuCrypto::BitVector choices = switches; 
 
   std::vector<osuCrypto::block> recvMsg(switches.size()), recvCorr(switches.size());
-  rand_ot_recv(switches, recvMsg, context);
+  silent_ot_recv(choices, recvMsg, context);
+  osuCrypto::BitVector bit_correction = switches ^ choices;
 
   osuCrypto::IOService ios;
   std::string name = "n";
-  osuCrypto::Session ep(ios, context.address, context.port + 4, osuCrypto::SessionMode::Server,
+  osuCrypto::Session ep1(ios, context.address, context.port + 5, osuCrypto::SessionMode::Server,
+                        name);
+  auto sendChl_bcorr = ep1.addChannel(name, name);
+  
+  sendChl_bcorr.asyncSend(bit_correction);
+  sendChl_bcorr.close(); 
+  
+  osuCrypto::Session ep(ios, context.address, context.port + 6, osuCrypto::SessionMode::Server,
                         name);
   auto recvChl_osn = ep.addChannel(name, name);
 
@@ -749,10 +758,30 @@ std::vector<std::vector<uint64_t>>  gen_benes_client_osn (int values, ENCRYPTO::
   
   const auto rand_ot_start = std::chrono::system_clock::now();
   std::vector<std::array<osuCrypto::block,2>> ot_messages(switches);
-  rand_ot_send(ot_messages, context); //sample random ot blocks
+   osuCrypto::BitVector bit_correction(switches); 
+  silent_ot_send(ot_messages, context); //sample random ot blocks
   const auto rand_ot_end = std::chrono::system_clock::now();
   duration_millis diff = rand_ot_end - rand_ot_start;
   std::cout << "random OT cost: " << diff.count();
+
+  osuCrypto::IOService ios;
+  std::string name = "n";
+  osuCrypto::Session ep1(ios, context.address, context.port + 5, osuCrypto::SessionMode::Client,
+                        name);
+  auto recvChl_bcorr = ep1.addChannel(name, name);
+  
+  recvChl_bcorr.recv(bit_correction.data(), bit_correction.size());
+  std::cout << "bit correction " << bit_correction << std::endl;
+  recvChl_bcorr.close();
+  osuCrypto::block tmp;
+  for (int k = 0; k < ot_messages.size(); k++) {
+    if(bit_correction[k] == 1){
+      tmp = ot_messages[k][0];
+      ot_messages[k][0] = ot_messages[k][1];
+      ot_messages[k][1] = tmp; 
+    }
+  }
+  
 
   std::vector<osuCrypto::block> correction_blocks(switches); 
   
@@ -762,11 +791,10 @@ std::vector<std::vector<uint64_t>>  gen_benes_client_osn (int values, ENCRYPTO::
 
 
   // create a channel and send correction_blocks
-  osuCrypto::IOService ios;
-  std::string name = "n";
-  osuCrypto::Session ep0(ios, context.address, context.port + 4, osuCrypto::SessionMode::Client,
+ 
+  osuCrypto::Session ep(ios, context.address, context.port + 6, osuCrypto::SessionMode::Client,
                         name);
-  auto sendChl_osn = ep0.addChannel(name, name);
+  auto sendChl_osn = ep.addChannel(name, name);
 
   //for (int i = 0; i < correction_blocks.size(); i++) {
   //    //std::cout<<" sending correction block: "<<correction_blocks[i]<<std::endl;

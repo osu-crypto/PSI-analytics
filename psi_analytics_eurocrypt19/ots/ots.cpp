@@ -35,6 +35,11 @@
 #include "libOTe/TwoChooseOne/IknpOtExtSender.h"
 #include "libOTe/TwoChooseOne/IknpOtExtReceiver.h"
 
+
+#include "libOTe/Tools/SilentPprf.h"
+#include "libOTe/TwoChooseOne/SilentOtExtSender.h"
+#include "libOTe/TwoChooseOne/SilentOtExtReceiver.h"
+
 #include "common/constants.h"
 #include "common/psi_analytics_context.h"
 
@@ -349,6 +354,51 @@ void rand_ot_recv(osuCrypto::BitVector &choices, std::vector<osuCrypto::block> &
   osuCrypto::IknpOtExtReceiver recv;
   recv.setBaseOts(baseSend); 
   recv.receive(choices, recvMsg, prng0, recvChl);  
+
+}
+
+void silent_ot_send (std::vector<std::array<osuCrypto::block,2>> &sendMsg, ENCRYPTO::PsiAnalyticsContext &context) {
+
+    std::cout<<"\n Silent OT sender!! \n";
+    osuCrypto::IOService ios;
+    std::string name = "n";
+    osuCrypto::Session ep(ios, context.address, context.port + 1, osuCrypto::SessionMode::Client,
+                        name);
+    auto sendChl = ep.addChannel(name, name);
+    osuCrypto::PRNG prng1(_mm_set_epi32(4253233465, 334565, 0, 235));
+    osuCrypto::u64 numOTs = sendMsg.size();
+    
+    
+    osuCrypto::SilentOtExtSender sender;
+    
+    sender.configure(numOTs, 10, 80, 1);
+    
+    sender.silentSend(sendMsg, prng1, sendChl);
+    /*for (int i = 0; i < sendMsg.size(); i++){
+    std::cout << "rand ot messages " << sendMsg[i][0] << " " << sendMsg[i][1] << std::endl; 
+     }*/
+
+
+}
+
+void silent_ot_recv (osuCrypto::BitVector &choices, std::vector<osuCrypto::block> &recvMsg, ENCRYPTO::PsiAnalyticsContext &context) {
+  std::cout<<"\n Silent OT receiver!!\n";
+  std::string name = "n";
+  osuCrypto::IOService ios;
+  osuCrypto::Session ep(ios, context.address, context.port + 1, osuCrypto::SessionMode::Server,
+                        name);
+  auto recvChl = ep.addChannel(name, name);
+  osuCrypto::PRNG prng0(_mm_set_epi32(4253465, 3434565, 234435, 23987045));
+  osuCrypto::u64 numOTs = choices.size();
+ 
+  osuCrypto::SilentOtExtReceiver recv;
+  recv.configure(numOTs, 10, 80, 1);
+ 
+  recv.silentReceive(choices, recvMsg, prng0, recvChl);  
+  /*std::cout << "choices after silent ot " << choices << std::endl;
+  for (int i = 0; i < recvMsg.size(); i++){
+    std::cout << "rand ot recv message " << choices[i] << " " << recvMsg[i] << std::endl; 
+  } */
 
 }
 
