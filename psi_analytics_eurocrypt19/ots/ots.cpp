@@ -395,6 +395,7 @@ void silent_ot_recv (osuCrypto::BitVector &choices, std::vector<osuCrypto::block
   recv.configure(numOTs, 10, 80, 1);
  
   recv.silentReceive(choices, recvMsg, prng0, recvChl);  
+  std::cout << "silent ot recv: does it run?? " << std::endl;
   /*std::cout << "choices after silent ot " << choices << std::endl;
   for (int i = 0; i < recvMsg.size(); i++){
     std::cout << "rand ot recv message " << choices[i] << " " << recvMsg[i] << std::endl; 
