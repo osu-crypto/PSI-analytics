@@ -374,9 +374,6 @@ void silent_ot_send (std::vector<std::array<osuCrypto::block,2>> &sendMsg, ENCRY
     sender.configure(numOTs, 10, 80, 1);
     
     sender.silentSend(sendMsg, prng1, sendChl);
-    /*for (int i = 0; i < sendMsg.size(); i++){
-    std::cout << "rand ot messages " << sendMsg[i][0] << " " << sendMsg[i][1] << std::endl; 
-     }*/
 
 
 }
@@ -393,13 +390,9 @@ void silent_ot_recv (osuCrypto::BitVector &choices, std::vector<osuCrypto::block
  
   osuCrypto::SilentOtExtReceiver recv;
   recv.configure(numOTs, 10, 80, 1);
- 
+  // std::cout<<"\n receiving!!\n";
   recv.silentReceive(choices, recvMsg, prng0, recvChl);  
-  std::cout << "silent ot recv: does it run?? " << std::endl;
-  /*std::cout << "choices after silent ot " << choices << std::endl;
-  for (int i = 0; i < recvMsg.size(); i++){
-    std::cout << "rand ot recv message " << choices[i] << " " << recvMsg[i] << std::endl; 
-  } */
+  // std::cout<<"\n received!!\n";
 
 }
 

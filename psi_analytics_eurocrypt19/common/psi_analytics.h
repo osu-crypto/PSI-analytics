@@ -54,6 +54,7 @@ std::vector<std::vector<uint64_t>>  client_r_ot_osn (int N, ENCRYPTO::PsiAnalyti
 std::vector<osuCrypto::block> server_r_ot_osn (int N, ENCRYPTO::PsiAnalyticsContext &context, std::vector<int> &dest); 
 
 std::vector<uint64_t> OpprgPsiClient(const std::vector<uint64_t> &elements,
+                          std::vector<uint64_t> &cuckoo_table_v,
                                      PsiAnalyticsContext &context);
 
 std::vector<uint64_t> OpprgPsiServer(const std::vector<uint64_t> &elements,

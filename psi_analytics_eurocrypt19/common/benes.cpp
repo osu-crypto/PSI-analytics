@@ -59,7 +59,7 @@ void DFS(int idx, int route) {
 }
 
 int shuffle(int i, int n) { 
-	return ((i & 1) << (n - 1)) | (i >> 1); 
+  return ((i & 1) << (n - 1)) | (i >> 1); 
 }
 
 void benes_route(int n, int lvl_p, int perm_idx, const vector<int> &src, const vector<int> &dest) {
@@ -71,8 +71,8 @@ void benes_route(int n, int lvl_p, int perm_idx, const vector<int> &src, const v
   /*std::cout << "in level p = " << lvl_p << std::endl; 
   std::cout<< "permutation index = " << perm_idx << std::endl; */
   if (n == 1) {
-  	switched[lvl_p][perm_idx] = src[0] != dest[0]; 
-  	return; 
+    switched[lvl_p][perm_idx] = src[0] != dest[0]; 
+    return; 
   }
   
   values = 1 << n;
@@ -93,25 +93,25 @@ void benes_route(int n, int lvl_p, int perm_idx, const vector<int> &src, const v
   }*/
 
   for (i = 0; i < values; ++i) {
-  	inv_perm[src[i]] = i;
+    inv_perm[src[i]] = i;
     //std::cout << "inv_perm" << src[i] << inv_perm[src[i]] << std::endl; 
     }
  
   for (i = 0; i < values; ++i){
-  	perm[i] = inv_perm[dest[i]];
+    perm[i] = inv_perm[dest[i]];
     //std::cout << "perm" << i << perm[i] << std::endl; 
     }
 
   for (i = 0; i < values; ++i) {
-  	inv_perm[perm[i]] = i;
+    inv_perm[perm[i]] = i;
     //std::cout << "inv_perm" << perm[i] << i << std::endl; 
     }
  
   memset(path, -1, sizeof(path));
   //std::cout << "size of the path " << sizeof(path) << std::endl; 
   for (i = 0; i < values; ++i)
-  	if (path[i] < 0)
-  		DFS(i, 0);
+    if (path[i] < 0)
+      DFS(i, 0);
 
 
   for (i = 0; i < values; i += 2) {
