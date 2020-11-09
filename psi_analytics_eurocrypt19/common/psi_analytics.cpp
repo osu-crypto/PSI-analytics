@@ -166,39 +166,18 @@ uint64_t run_psi_analytics(const std::vector<std::uint64_t> &inputs, PsiAnalytic
       
 
       for (int i=0; i < inputs2.size(); ++i)
-        inputs_copy[i] = inputs2[i];
+        inputs_copy[i] = inputs2[i]/100;
       std::sort(inputs_copy.begin(), inputs_copy.end(), std::less<uint64_t>());
 
-      std::cout<<"inputs 2 "<<std::endl;
-      for (int i=0; i < inputs2.size(); ++i)
-        std::cout<<inputs2[i]<<std::endl;
 
-      std::cout<<"cuckoo_table_v "<<std::endl;
-      for (int i=0; i < cuckoo_table_v.size(); ++i)
-        std::cout<<cuckoo_table_v[i]<<std::endl;
-
-
-      //for (int i=0; i < cuckoo_table_v.size(); ++i) {
-      //  if (!std::binary_search(inputs_copy.begin(), inputs_copy.end(), cuckoo_table_v[i]))
-      //      cuckoo_table_v[i] = 0;
-      //}
-      
-      int flag;
+      //const auto start_s = std::chrono::system_clock::now();
       for (int i=0; i < cuckoo_table_v.size(); ++i) {
-        flag = 0;
-        for (int j=0; j < inputs_copy.size(); ++j)
-        if (inputs_copy[j]/100 == cuckoo_table_v[i]/100){
-          flag = 1;
-          break;
-        }
-        if (flag == 0){
+        if (!std::binary_search(inputs_copy.begin(), inputs_copy.end(), cuckoo_table_v[i]/100))
           cuckoo_table_v[i] = 0;
-        }   
       }
-
-      std::cout<<" modified cuckoo table"<<std::endl;
-      for (int i=0; i < cuckoo_table_v.size(); ++i)
-        std::cout<<cuckoo_table_v[i]<<std::endl;
+      //const auto end_s = std::chrono::system_clock::now();
+      //diff = end_s - start_s;
+      //std::cout<<"binary search time "<<diff.count();
 
 
       std::vector<uint64_t> permuted_table(cuckoo_table_v.size());
@@ -305,14 +284,8 @@ uint64_t run_psi_analytics(const std::vector<std::uint64_t> &inputs, PsiAnalytic
           rcvMsgUnion.push_back(ot_msg[0]);
       }
 
-      std::cout<<"received values by the server "<<std::endl;
-      for (int i=0; i < rcvMsgUnion.size(); ++i)
-        std::cout<<rcvMsgUnion[i]<<std::endl;
-
-      std::cout<<"the characteristic vector: "<<char_vec<<std::endl;
 
       output =  rcvMsgUnion.size() + inputs2.size();
-
 
       const auto psu_end = std::chrono::system_clock::now();
       diff = psu_end - kkrt_end;
