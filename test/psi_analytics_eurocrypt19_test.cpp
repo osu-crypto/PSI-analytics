@@ -139,6 +139,9 @@ void PsiAnalyticsPIDTest(std::size_t elem_bitlen, uint64_t neles, uint64_t polyn
     client_thread.join();
     server_thread.join();
 
+    ASSERT_EQ(psi_server, server_inputs.size()+client_inputs.size()-plain_intersection_size);
+
+
   }
 
 }

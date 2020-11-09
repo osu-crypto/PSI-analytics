@@ -160,8 +160,6 @@ uint64_t run_psi_analytics(const std::vector<std::uint64_t> &inputs, PsiAnalytic
     if (context.analytics_type == ENCRYPTO::PsiAnalyticsContext::UNION || context.analytics_type == ENCRYPTO::PsiAnalyticsContext::PID) // TO BE MOVED! - 1
     {
       std::cout<<"Computing Set Union: "<<std::endl;
-      //ENCRYPTO::CuckooTable cuckoo_table(static_cast<std::size_t>(context.nbins));
-      //cuckoo_table.SetNumOfHashFunctions(context.nfuns);
       std::vector<uint64_t> inputs_copy(inputs2.size());
       
 
@@ -170,14 +168,14 @@ uint64_t run_psi_analytics(const std::vector<std::uint64_t> &inputs, PsiAnalytic
       std::sort(inputs_copy.begin(), inputs_copy.end(), std::less<uint64_t>());
 
 
-      //const auto start_s = std::chrono::system_clock::now();
+      const auto start_s = std::chrono::system_clock::now();
       for (int i=0; i < cuckoo_table_v.size(); ++i) {
         if (!std::binary_search(inputs_copy.begin(), inputs_copy.end(), cuckoo_table_v[i]/100))
           cuckoo_table_v[i] = 0;
       }
-      //const auto end_s = std::chrono::system_clock::now();
-      //diff = end_s - start_s;
-      //std::cout<<"binary search time "<<diff.count();
+      const auto end_s = std::chrono::system_clock::now();
+      diff = end_s - start_s;
+      std::cout<<"\n binary search time "<<diff.count()<<std::endl;
 
 
       std::vector<uint64_t> permuted_table(cuckoo_table_v.size());
