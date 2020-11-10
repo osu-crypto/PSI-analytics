@@ -34,7 +34,13 @@
 
 namespace ENCRYPTO {
 
-uint64_t run_psi_analytics(const std::vector<std::uint64_t> &inputs, PsiAnalyticsContext &context);
+static std::vector<uint64_t> DEFAULT_VECTOR;
+
+
+//uint64_t run_psi_analytics(const std::vector<std::uint64_t> &inputs, PsiAnalyticsContext &context);
+uint64_t run_psi_analytics(const std::vector<std::uint64_t> &inputs, PsiAnalyticsContext &context, const std::vector<std::uint64_t> &ass_data = DEFAULT_VECTOR);
+
+
 
 std::vector<std::vector<uint64_t>>  client_osn (int N, ENCRYPTO::PsiAnalyticsContext &context);
 

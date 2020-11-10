@@ -25,6 +25,7 @@
 namespace ENCRYPTO {
 
 struct PsiAnalyticsContext {
+  uint64_t ot;
   uint16_t port;
   uint32_t role;
   uint64_t bitlen;

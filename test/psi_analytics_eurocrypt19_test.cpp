@@ -27,7 +27,8 @@ constexpr std::size_t POLYNOMIALSIZE_2_12 = 975, POLYNOMIALSIZE_2_16 = 1021,
 constexpr std::size_t NMEGABINS_2_12 = 16, NMEGABINS_2_16 = 248, NMEGABINS_2_20 = 4002;
 
 auto CreateContext(e_role role, uint64_t neles, uint64_t polynomialsize, uint64_t nmegabins) {
-  return ENCRYPTO::PsiAnalyticsContext{7777,  // port
+  return ENCRYPTO::PsiAnalyticsContext{0,
+                                       7777,  // port
                                        role,
                                        61,  // bitlength
                                        neles,
@@ -45,20 +46,24 @@ auto CreateContext(e_role role, uint64_t neles, uint64_t polynomialsize, uint64_
 }
 
 void PsiAnalyticsCardinalityTest(std::size_t elem_bitlen, uint64_t neles, uint64_t polynomialsize,
-                      uint64_t nmegabins) {
+                      uint64_t nmegabins, uint64_t ot_type) {
   
   
 
   auto client_context = CreateContext(CLIENT, neles, polynomialsize, nmegabins);
   auto server_context = CreateContext(SERVER, neles, polynomialsize, nmegabins);
-
-
+  client_context.ot = ot_type;
+  server_context.ot = ot_type;
   auto client_inputs = ENCRYPTO::GeneratePseudoRandomElements(client_context.neles, 61, 1);
   auto server_inputs = ENCRYPTO::GeneratePseudoRandomElements(server_context.neles, 61, 2);
   for (int i=0; i < neles/2; ++i)
     client_inputs[i] = server_inputs[i];
   auto plain_intersection_size = ENCRYPTO::PlainIntersectionSize(client_inputs, server_inputs);
 
+  if (client_context.ot == 0)
+    std::cout<<"\n Cardinality Silent OT \n";
+  else
+    std::cout<<"\n Cardinality IKNP OT \n";
 
 
   std::uint64_t psi_client, psi_server;
@@ -78,12 +83,14 @@ void PsiAnalyticsCardinalityTest(std::size_t elem_bitlen, uint64_t neles, uint64
 }
 
 void PsiAnalyticsUnionTest(std::size_t elem_bitlen, uint64_t neles, uint64_t polynomialsize,
-                      uint64_t nmegabins) {
+                      uint64_t nmegabins, uint64_t ot_type) {
   //neles = 20;
   auto client_context = CreateContext(CLIENT, neles, polynomialsize, nmegabins);
   auto server_context = CreateContext(SERVER, neles, polynomialsize, nmegabins);
   client_context.analytics_type = ENCRYPTO::PsiAnalyticsContext::UNION ;
   server_context.analytics_type = ENCRYPTO::PsiAnalyticsContext::UNION ;
+  client_context.ot = ot_type;
+  server_context.ot = ot_type;
 
   auto client_inputs = ENCRYPTO::GeneratePseudoRandomElements(client_context.neles, 61, 1);
   auto server_inputs = ENCRYPTO::GeneratePseudoRandomElements(server_context.neles, 61, 2);
@@ -93,6 +100,11 @@ void PsiAnalyticsUnionTest(std::size_t elem_bitlen, uint64_t neles, uint64_t pol
     client_inputs[i] = server_inputs[i];
 
   auto plain_intersection_size = ENCRYPTO::PlainIntersectionSize(client_inputs, server_inputs);
+
+  if (client_context.ot == 0)
+    std::cout<<"\n Union Silent OT \n";
+  else
+    std::cout<<"\n Union IKNP OT \n";
 
 
   std::uint64_t psi_client, psi_server;
@@ -115,18 +127,25 @@ void PsiAnalyticsUnionTest(std::size_t elem_bitlen, uint64_t neles, uint64_t pol
 
 
 void PsiAnalyticsPIDTest(std::size_t elem_bitlen, uint64_t neles, uint64_t polynomialsize,
-                      uint64_t nmegabins) {
+                      uint64_t nmegabins, uint64_t ot_type) {
   
   auto client_context = CreateContext(CLIENT, neles, polynomialsize, nmegabins);
   auto server_context = CreateContext(SERVER, neles, polynomialsize, nmegabins);
   client_context.analytics_type = ENCRYPTO::PsiAnalyticsContext::PID ;
   server_context.analytics_type = ENCRYPTO::PsiAnalyticsContext::PID ;
+  client_context.ot = ot_type;
+  server_context.ot = ot_type;
 
   auto client_inputs = ENCRYPTO::GeneratePseudoRandomElements(client_context.neles, 61, 1);
   auto server_inputs = ENCRYPTO::GeneratePseudoRandomElements(server_context.neles, 61, 2);
   for (int i=0; i < neles/2; ++i)
     client_inputs[i] = server_inputs[i];
   auto plain_intersection_size = ENCRYPTO::PlainIntersectionSize(client_inputs, server_inputs);
+
+  if (client_context.ot == 0)
+    std::cout<<"\n PID Silent OT \n";
+  else
+    std::cout<<"\n PID IKNP OT \n";
 
   std::uint64_t psi_client, psi_server;
 
@@ -147,48 +166,156 @@ void PsiAnalyticsPIDTest(std::size_t elem_bitlen, uint64_t neles, uint64_t polyn
 }
 
 
+void PsiAnalyticsSumTest(std::size_t elem_bitlen, uint64_t neles, uint64_t polynomialsize,
+                      uint64_t nmegabins, uint64_t ot_type) {
+  
+  auto client_context = CreateContext(CLIENT, neles, polynomialsize, nmegabins);
+  auto server_context = CreateContext(SERVER, neles, polynomialsize, nmegabins);
+  client_context.analytics_type = ENCRYPTO::PsiAnalyticsContext::SUM;
+  server_context.analytics_type = ENCRYPTO::PsiAnalyticsContext::SUM;
+  client_context.ot = ot_type;
+  server_context.ot = ot_type;
+
+  auto client_inputs = ENCRYPTO::GeneratePseudoRandomElements(client_context.neles, 61, 1);
+  auto server_inputs = ENCRYPTO::GeneratePseudoRandomElements(server_context.neles, 61, 2);
+  for (int i=0; i < neles/3; ++i)
+    client_inputs[i] = server_inputs[i];
+  auto plain_intersection_size = ENCRYPTO::PlainIntersectionSize(client_inputs, server_inputs);
+
+  int c = 2;
+  std::vector<uint64_t> ass_data(neles, c);
+
+  if (client_context.ot == 0)
+    std::cout<<"\n Sum Silent OT \n";
+  else
+    std::cout<<"\n Sum IKNP OT \n";
 
 
-TEST(PSI_ANALYTICS, pow_2_12) {
+  std::uint64_t psi_client, psi_server;
+
+  {
+    std::thread client_thread(
+        [&]() { psi_client = run_psi_analytics(client_inputs, client_context, ass_data); });
+    std::thread server_thread(
+        [&]() { psi_server = run_psi_analytics(server_inputs, server_context); });
+
+    client_thread.join();
+    server_thread.join();
+
+    ASSERT_EQ(psi_server, c*plain_intersection_size);
+
+
+  }
+
+}
+
+
+
+
+TEST(PSI_ANALYTICS, card_silent_pow_2_12) {
 
   for (auto i = 0ull; i < ITERATIONS; ++i) {
-    PsiAnalyticsCardinalityTest(61, NELES_2_12, POLYNOMIALSIZE_2_12, NMEGABINS_2_12);
+    PsiAnalyticsCardinalityTest(61, NELES_2_12, POLYNOMIALSIZE_2_12, NMEGABINS_2_12, 0);
   }
 }
 
-TEST(PSI_ANALYTICS, pow_2_16) {
-  for (auto i = 0ull; i < ITERATIONS; ++i) {
-    PsiAnalyticsCardinalityTest(61, NELES_2_16, POLYNOMIALSIZE_2_16, NMEGABINS_2_16);
-  } 
-}
+TEST(PSI_ANALYTICS, card_iknp_pow_2_12) {
 
-/*
-
-TEST(PSI_ANALYTICS, pow_2_20) {
   for (auto i = 0ull; i < ITERATIONS; ++i) {
-    PsiAnalyticsCardinalityTest(61, NELES_2_20, POLYNOMIALSIZE_2_20, NMEGABINS_2_20);
-  } 
-}
-
-*/
-TEST(PSI_ANALYTICS, union_pow_2_12) {
-  for (auto i = 0ull; i < ITERATIONS; ++i) {
-    PsiAnalyticsUnionTest(61, NELES_2_12, POLYNOMIALSIZE_2_12, NMEGABINS_2_12);
+    PsiAnalyticsCardinalityTest(61, NELES_2_12, POLYNOMIALSIZE_2_12, NMEGABINS_2_12, 1);
   }
 }
 
-TEST(PSI_ANALYTICS, union_pow_2_16) {
+TEST(PSI_ANALYTICS, union_silent_pow_2_12) {
   for (auto i = 0ull; i < ITERATIONS; ++i) {
-    PsiAnalyticsUnionTest(61, NELES_2_16, POLYNOMIALSIZE_2_16, NMEGABINS_2_16);
-  } 
+    PsiAnalyticsUnionTest(61, NELES_2_12, POLYNOMIALSIZE_2_12, NMEGABINS_2_12, 0);
+  }
+}
+
+TEST(PSI_ANALYTICS, union_iknp_pow_2_12) {
+  for (auto i = 0ull; i < ITERATIONS; ++i) {
+    PsiAnalyticsUnionTest(61, NELES_2_12, POLYNOMIALSIZE_2_12, NMEGABINS_2_12, 1);
+  }
+}
+
+TEST(PSI_ANALYTICS, pid_silent_pow_2_12) {
+  for (auto i = 0ull; i < ITERATIONS; ++i) {
+    PsiAnalyticsPIDTest(61, NELES_2_12, POLYNOMIALSIZE_2_12, NMEGABINS_2_12, 0);
+  }
+}
+
+TEST(PSI_ANALYTICS, pid_iknp_pow_2_12) {
+  for (auto i = 0ull; i < ITERATIONS; ++i) {
+    PsiAnalyticsPIDTest(61, NELES_2_12, POLYNOMIALSIZE_2_12, NMEGABINS_2_12, 1);
+  }
+}
+
+TEST(PSI_ANALYTICS, sum_silent_pow_2_12) {
+
+  for (auto i = 0ull; i < ITERATIONS; ++i) {
+    PsiAnalyticsSumTest(61, NELES_2_12, POLYNOMIALSIZE_2_12, NMEGABINS_2_12, 0);
+  }
+}
+
+TEST(PSI_ANALYTICS, sum_iknp_pow_2_12) {
+
+  for (auto i = 0ull; i < ITERATIONS; ++i) {
+    PsiAnalyticsSumTest(61, NELES_2_12, POLYNOMIALSIZE_2_12, NMEGABINS_2_12, 1);
+  }
 }
 
 
 
 
-TEST(PSI_ANALYTICS, pid_pow_2_12) {
+TEST(PSI_ANALYTICS, card_silent_pow_2_16) {
+
   for (auto i = 0ull; i < ITERATIONS; ++i) {
-    PsiAnalyticsPIDTest(61, NELES_2_12, POLYNOMIALSIZE_2_12, NMEGABINS_2_12);
+    PsiAnalyticsCardinalityTest(61, NELES_2_16, POLYNOMIALSIZE_2_16, NMEGABINS_2_16, 0);
+  }
+}
+
+TEST(PSI_ANALYTICS, card_iknp_pow_2_16) {
+
+  for (auto i = 0ull; i < ITERATIONS; ++i) {
+    PsiAnalyticsCardinalityTest(61, NELES_2_16, POLYNOMIALSIZE_2_16, NMEGABINS_2_16, 1);
+  }
+}
+
+TEST(PSI_ANALYTICS, union_silent_pow_2_16) {
+  for (auto i = 0ull; i < ITERATIONS; ++i) {
+    PsiAnalyticsUnionTest(61, NELES_2_16, POLYNOMIALSIZE_2_16, NMEGABINS_2_16, 0);
+  }
+}
+
+TEST(PSI_ANALYTICS, union_iknp_pow_2_16) {
+  for (auto i = 0ull; i < ITERATIONS; ++i) {
+    PsiAnalyticsUnionTest(61, NELES_2_16, POLYNOMIALSIZE_2_16, NMEGABINS_2_16, 1);
+  }
+}
+
+TEST(PSI_ANALYTICS, pid_silent_pow_2_16) {
+  for (auto i = 0ull; i < ITERATIONS; ++i) {
+    PsiAnalyticsPIDTest(61, NELES_2_16, POLYNOMIALSIZE_2_16, NMEGABINS_2_16, 0);
+  }
+}
+
+TEST(PSI_ANALYTICS, pid_iknp_pow_2_16) {
+  for (auto i = 0ull; i < ITERATIONS; ++i) {
+    PsiAnalyticsPIDTest(61, NELES_2_16, POLYNOMIALSIZE_2_16, NMEGABINS_2_16, 1);
+  }
+}
+
+TEST(PSI_ANALYTICS, sum_silent_pow_2_16) {
+
+  for (auto i = 0ull; i < ITERATIONS; ++i) {
+    PsiAnalyticsSumTest(61, NELES_2_16, POLYNOMIALSIZE_2_16, NMEGABINS_2_16, 0);
+  }
+}
+
+TEST(PSI_ANALYTICS, sum_iknp_pow_2_16) {
+
+  for (auto i = 0ull; i < ITERATIONS; ++i) {
+    PsiAnalyticsSumTest(61, NELES_2_16, POLYNOMIALSIZE_2_16, NMEGABINS_2_16, 1);
   }
 }
 
@@ -196,10 +323,57 @@ TEST(PSI_ANALYTICS, pid_pow_2_12) {
 
 
 
-TEST(PSI_ANALYTICS, pid_pow_2_16) {
+
+TEST(PSI_ANALYTICS, card_silent_pow_2_20) {
+
   for (auto i = 0ull; i < ITERATIONS; ++i) {
-    PsiAnalyticsPIDTest(61, NELES_2_16, POLYNOMIALSIZE_2_16, NMEGABINS_2_16);
-  } 
+    PsiAnalyticsCardinalityTest(61, NELES_2_20, POLYNOMIALSIZE_2_20, NMEGABINS_2_20, 0);
+  }
+}
+
+TEST(PSI_ANALYTICS, card_iknp_pow_2_20) {
+
+  for (auto i = 0ull; i < ITERATIONS; ++i) {
+    PsiAnalyticsCardinalityTest(61, NELES_2_20, POLYNOMIALSIZE_2_20, NMEGABINS_2_20, 1);
+  }
+}
+
+TEST(PSI_ANALYTICS, union_silent_pow_2_20) {
+  for (auto i = 0ull; i < ITERATIONS; ++i) {
+    PsiAnalyticsUnionTest(61, NELES_2_20, POLYNOMIALSIZE_2_20, NMEGABINS_2_20, 0);
+  }
+}
+
+TEST(PSI_ANALYTICS, union_iknp_pow_2_20) {
+  for (auto i = 0ull; i < ITERATIONS; ++i) {
+    PsiAnalyticsUnionTest(61, NELES_2_20, POLYNOMIALSIZE_2_20, NMEGABINS_2_20, 1);
+  }
+}
+
+TEST(PSI_ANALYTICS, pid_silent_pow_2_20) {
+  for (auto i = 0ull; i < ITERATIONS; ++i) {
+    PsiAnalyticsPIDTest(61, NELES_2_20, POLYNOMIALSIZE_2_20, NMEGABINS_2_20, 0);
+  }
+}
+
+TEST(PSI_ANALYTICS, pid_iknp_pow_2_20) {
+  for (auto i = 0ull; i < ITERATIONS; ++i) {
+    PsiAnalyticsPIDTest(61, NELES_2_20, POLYNOMIALSIZE_2_20, NMEGABINS_2_20, 1);
+  }
+}
+
+TEST(PSI_ANALYTICS, sum_silent_pow_2_20) {
+
+  for (auto i = 0ull; i < ITERATIONS; ++i) {
+    PsiAnalyticsSumTest(61, NELES_2_20, POLYNOMIALSIZE_2_20, NMEGABINS_2_20, 0);
+  }
+}
+
+TEST(PSI_ANALYTICS, sum_iknp_pow_2_20) {
+
+  for (auto i = 0ull; i < ITERATIONS; ++i) {
+    PsiAnalyticsSumTest(61, NELES_2_20, POLYNOMIALSIZE_2_20, NMEGABINS_2_20, 1);
+  }
 }
 
 

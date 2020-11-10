@@ -60,7 +60,9 @@ using share_ptr = std::shared_ptr<share>;
 using milliseconds_ratio = std::ratio<1, 1000>;
 using duration_millis = std::chrono::duration<double, milliseconds_ratio>;
 
-uint64_t run_psi_analytics(const std::vector<std::uint64_t> &inputs, PsiAnalyticsContext &context) {
+
+
+uint64_t run_psi_analytics(const std::vector<std::uint64_t> &inputs, PsiAnalyticsContext &context, const std::vector<std::uint64_t> &ass_data) {
 
 
   // establish network connection
@@ -195,6 +197,49 @@ uint64_t run_psi_analytics(const std::vector<std::uint64_t> &inputs, PsiAnalytic
       std::cout<<"\n final OT step: "<<diff.count();
     }
 
+    if (context.analytics_type == ENCRYPTO::PsiAnalyticsContext::SUM) 
+    {
+      std::cout<<"Computing Sum: "<<std::endl;
+      std::vector<uint64_t> inputs_copy(inputs2.size());
+      
+      std::vector<std::pair<uint64_t, uint64_t>> target;
+      target.reserve(inputs2.size());
+      std::transform(inputs2.begin(), inputs2.end(), ass_data.begin(), std::back_inserter(target),
+               [](uint64_t a, uint64_t b) { return std::make_pair(a/100, b); });
+
+      std::sort(target.begin(), target.end());
+
+      std::vector<uint64_t> target_first(target.size());
+      for (int i=0; i < target.size(); ++i)
+        target_first[i] = target[i].first;
+
+
+      for (int i=0; i < cuckoo_table_v.size(); ++i) {
+        std::vector<uint64_t>::iterator it = std::lower_bound(target_first.begin(), target_first.end(), cuckoo_table_v[i]/100);
+        if (it == std::end(target_first))
+          cuckoo_table_v[i] = 0;
+        else
+          cuckoo_table_v[i] = target[it-target_first.begin()].second;
+      }
+
+      std::vector<uint64_t> permuted_table(cuckoo_table_v.size());
+      for (int i=0; i < permuted_table.size(); ++i) 
+          permuted_table[i] = cuckoo_table_v[dest[i]];
+      
+      
+
+      std::vector<std::vector<osuCrypto::block>> messages(cuckoo_table_v.size());
+      for (int i=0; i < permuted_table.size(); ++i) {
+          messages[i].push_back(osuCrypto::toBlock(0, 0));
+          messages[i].push_back(osuCrypto::toBlock(0, permuted_table[i]));
+      }
+      ot_send(messages, context); 
+      const auto psu_finish = std::chrono::system_clock::now();
+      diff = psu_finish - kkrt_finish;
+      std::cout<<"\n final OT step: "<<diff.count();
+    }
+
+
 
   } else {
 
@@ -269,9 +314,9 @@ uint64_t run_psi_analytics(const std::vector<std::uint64_t> &inputs, PsiAnalytic
 
     // -------------------kkrt end -------------------------------- 
 
-    std::vector<uint64_t> rcvMsgUnion;
     if (context.analytics_type == ENCRYPTO::PsiAnalyticsContext::UNION || context.analytics_type == ENCRYPTO::PsiAnalyticsContext::PID) 
     {
+      std::vector<uint64_t> rcvMsgUnion;
       std::vector<osuCrypto::block> recvMsg(char_vec.size());
       ot_recv(char_vec, recvMsg, context);
       uint64_t ot_msg[2];
@@ -290,6 +335,28 @@ uint64_t run_psi_analytics(const std::vector<std::uint64_t> &inputs, PsiAnalytic
       std::cout<<"\n final ot step: "<<diff.count();
 
     }
+
+    if (context.analytics_type == ENCRYPTO::PsiAnalyticsContext::SUM) 
+    {
+      output = 0;
+      std::vector<uint64_t> rcvMsgUnion;
+      std::vector<osuCrypto::block> recvMsg(char_vec.size());
+      ot_recv(char_vec, recvMsg, context);
+      uint64_t ot_msg[2];
+      for (int i=0; i < recvMsg.size(); ++i) {
+        memcpy(ot_msg, &recvMsg[i], sizeof(ot_msg)); 
+        //std::cout<<"\n check: "<<ot_msg[0]<<" "<<ot_msg[1];
+        output += ot_msg[0];
+      }
+
+      const auto psu_end = std::chrono::system_clock::now();
+      diff = psu_end - kkrt_end;
+      std::cout<<"\n final ot step: "<<diff.count();
+
+      std::cout<<"\n output  "<<output;
+
+    }
+
 
        
   }
@@ -680,6 +747,7 @@ void prepare_correction(int n, int Val, int lvl_p, int perm_idx, std::vector<uin
 }
 
 std::vector<osuCrypto::block> gen_benes_server_osn(int values, ENCRYPTO::PsiAnalyticsContext &context, std::vector<int> &dest) {
+  
   const auto offline_osn_start = std::chrono::system_clock::now();
   int temp;
   int m = context.nbins;
@@ -702,37 +770,40 @@ std::vector<osuCrypto::block> gen_benes_server_osn(int values, ENCRYPTO::PsiAnal
   osuCrypto::BitVector switches = return_gen_benes_switches(values);
   osuCrypto::BitVector choices = switches; 
 
-  std::vector<osuCrypto::block> recvMsg(switches.size()), recvCorr(switches.size());
-  silent_ot_recv(choices, recvMsg, context);
-  osuCrypto::BitVector bit_correction = switches ^ choices;
-
   osuCrypto::IOService ios;
   std::string name = "n";
 
-  
-  osuCrypto::Session ep1(ios, context.address, context.port + 15, osuCrypto::SessionMode::Client,
+  std::vector<osuCrypto::block> recvMsg(switches.size());
+  std::vector<osuCrypto::block> recvCorr(switches.size());
+
+  if (context.ot == 0) {
+    silent_ot_recv(choices, recvMsg, context);
+    osuCrypto::BitVector bit_correction = switches ^ choices;
+
+    osuCrypto::Session ep1(ios, context.address, context.port + 15, osuCrypto::SessionMode::Client,
                         name);
-  auto sendChl_bcorr = ep1.addChannel(name, name);
+    auto sendChl_bcorr = ep1.addChannel(name, name);
   
-  std::vector<osuCrypto::block> bit_vec(bit_correction.size());
-  for (int i=0; i < bit_vec.size(); ++i) {
-    bit_vec[i] =  osuCrypto::toBlock(0, int(bit_correction[i]));
+    std::vector<osuCrypto::block> bit_vec(bit_correction.size());
+    for (int i=0; i < bit_vec.size(); ++i) {
+      bit_vec[i] =  osuCrypto::toBlock(0, int(bit_correction[i]));
+    }
+    //std::cout<<"\n sending bit vector: "<<bit_correction;
+    sendChl_bcorr.asyncSend(bit_vec);
+    sendChl_bcorr.close(); 
+
   }
-  //std::cout<<"\n sending bit vector: "<<bit_correction;
-  sendChl_bcorr.asyncSend(bit_vec);
-  sendChl_bcorr.close(); 
-  
+  else
+    rand_ot_recv(switches, recvMsg, context);
+
 
   osuCrypto::Session ep(ios, context.address, context.port + 6, osuCrypto::SessionMode::Server,
                         name);
   auto recvChl_osn = ep.addChannel(name, name);
 
 
-  
   recvChl_osn.recv(recvCorr.data(), recvCorr.size());
 
-
-  
   uint64_t temp_msg[2], temp_corr[2];
   for (int i = 0; i < recvMsg.size(); i++){
       if (switches[i] == 1) {
@@ -741,16 +812,12 @@ std::vector<osuCrypto::block> gen_benes_server_osn(int values, ENCRYPTO::PsiAnal
         temp_msg[0] = temp_corr[0] ^ temp_msg[0];
         temp_msg[1] = temp_corr[1] ^ temp_msg[1];
         recvMsg[i] = osuCrypto::toBlock(temp_msg[1], temp_msg[0]);  
-        //std::cout<<"for bit 1: index: "<<i<<" random message: "<<temp_msg[0]<<" "
-        //<<temp_msg[1]<<" correction received: "<<temp_corr[0]<<" "
-        //<<temp_corr[1]<<std::endl;  
       }
   }
   
   const auto offline_osn_finish = std::chrono::system_clock::now();
   duration_millis diff = offline_osn_finish - offline_osn_start;
   //std::cout<<"\n offline osn: "<<diff.count();
-
   return recvMsg;
 }
 
@@ -775,50 +842,44 @@ std::vector<std::vector<uint64_t>>  gen_benes_client_osn (int values, ENCRYPTO::
   
   const auto rand_ot_start = std::chrono::system_clock::now();
   std::vector<std::array<osuCrypto::block,2>> ot_messages(switches);
-   osuCrypto::BitVector bit_correction(switches); 
-
-  silent_ot_send(ot_messages, context); //sample random ot blocks
-  const auto rand_ot_end = std::chrono::system_clock::now();
-  duration_millis diff = rand_ot_end - rand_ot_start;
-  std::cout << "random OT cost: " << diff.count();
-
   osuCrypto::IOService ios;
   std::string name = "n";
 
-  
-  osuCrypto::Session ep1(ios, context.address, context.port + 15, osuCrypto::SessionMode::Server,
+  if (context.ot == 0)  {
+    osuCrypto::BitVector bit_correction(switches); 
+    silent_ot_send(ot_messages, context); //sample random ot blocks
+    osuCrypto::Session ep1(ios, context.address, context.port + 15, osuCrypto::SessionMode::Server,
                         name);
-  auto recvChl_bcorr = ep1.addChannel(name, name);
+    auto recvChl_bcorr = ep1.addChannel(name, name);
   
 
-  std::vector<osuCrypto::block> bit_vec(bit_correction.size());
-  recvChl_bcorr.recv(bit_vec.data(), bit_vec.size());
-  uint64_t temp_arr[2];
-  for (int i=0; i < bit_vec.size(); ++i) {
-    memcpy(temp_arr, &bit_vec[i], sizeof(temp_arr)); 
-    bit_correction[i] = temp_arr[0];
-  }
-  //std::cout << "bit correction " << bit_correction << std::endl;
-  recvChl_bcorr.close();
-  //std::cout<<"\n received bit vector: "<<bit_correction;
-
-  osuCrypto::block tmp;
-  for (int k = 0; k < ot_messages.size(); k++) {
-    if(bit_correction[k] == 1){
-      tmp = ot_messages[k][0];
-      ot_messages[k][0] = ot_messages[k][1];
-      ot_messages[k][1] = tmp; 
+    std::vector<osuCrypto::block> bit_vec(bit_correction.size());
+    recvChl_bcorr.recv(bit_vec.data(), bit_vec.size());
+    uint64_t temp_arr[2];
+    for (int i=0; i < bit_vec.size(); ++i) {
+      memcpy(temp_arr, &bit_vec[i], sizeof(temp_arr)); 
+      bit_correction[i] = temp_arr[0];
     }
-  }
-  
-  
+    //std::cout << "bit correction " << bit_correction << std::endl;
+    recvChl_bcorr.close();
+    //std::cout<<"\n received bit vector: "<<bit_correction;
 
+    osuCrypto::block tmp;
+     for (int k = 0; k < ot_messages.size(); k++) {
+        if(bit_correction[k] == 1){
+          tmp = ot_messages[k][0];
+          ot_messages[k][0] = ot_messages[k][1];
+          ot_messages[k][1] = tmp; 
+        }
+      }
+  }
+  else
+    rand_ot_send(ot_messages, context); //sample random ot blocks
+
+  
   std::vector<osuCrypto::block> correction_blocks(switches); 
   
   prepare_correction(N, values, 0, 0, masks, ot_messages, correction_blocks);
-
-
-
 
   // create a channel and send correction_blocks
  
@@ -833,12 +894,12 @@ std::vector<std::vector<uint64_t>>  gen_benes_client_osn (int values, ENCRYPTO::
   sendChl_osn.asyncSend(correction_blocks);
 
 
-
   for (int i= 0; i < values; ++i) {
     ret_masks[i].push_back(masks[i]);
   }
   const auto offline_osn_finish = std::chrono::system_clock::now();
-  diff = offline_osn_finish - offline_osn_start;
+  
+  duration_millis diff = offline_osn_finish - offline_osn_start;
   //std::cout << "\n offline osn: " << diff.count();
   return ret_masks;
 
