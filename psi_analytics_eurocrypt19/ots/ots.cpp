@@ -362,7 +362,7 @@ void silent_ot_send (std::vector<std::array<osuCrypto::block,2>> &sendMsg, ENCRY
     std::cout<<"\n Silent OT sender!! \n";
     osuCrypto::IOService ios;
     std::string name = "n";
-    osuCrypto::Session ep(ios, context.address, context.port + 1, osuCrypto::SessionMode::Client,
+    osuCrypto::Session ep(ios, context.address, context.port + 11, osuCrypto::SessionMode::Client,
                         name);
     auto sendChl = ep.addChannel(name, name);
     osuCrypto::PRNG prng1(_mm_set_epi32(4253233465, 334565, 0, 235));
@@ -382,7 +382,7 @@ void silent_ot_recv (osuCrypto::BitVector &choices, std::vector<osuCrypto::block
   std::cout<<"\n Silent OT receiver!!\n";
   std::string name = "n";
   osuCrypto::IOService ios;
-  osuCrypto::Session ep(ios, context.address, context.port + 1, osuCrypto::SessionMode::Server,
+  osuCrypto::Session ep(ios, context.address, context.port + 11, osuCrypto::SessionMode::Server,
                         name);
   auto recvChl = ep.addChannel(name, name);
   osuCrypto::PRNG prng0(_mm_set_epi32(4253465, 3434565, 234435, 23987045));

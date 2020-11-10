@@ -784,12 +784,12 @@ std::vector<osuCrypto::block> gen_benes_server_osn(int values, ENCRYPTO::PsiAnal
                         name);
     auto sendChl_bcorr = ep1.addChannel(name, name);
   
-    std::vector<osuCrypto::block> bit_vec(bit_correction.size());
+    /*std::vector<osuCrypto::block> bit_vec(bit_correction.size());
     for (int i=0; i < bit_vec.size(); ++i) {
       bit_vec[i] =  osuCrypto::toBlock(0, int(bit_correction[i]));
-    }
+    }*/
     //std::cout<<"\n sending bit vector: "<<bit_correction;
-    sendChl_bcorr.asyncSend(bit_vec);
+    sendChl_bcorr.send(bit_correction);
     sendChl_bcorr.close(); 
 
   }
@@ -853,13 +853,13 @@ std::vector<std::vector<uint64_t>>  gen_benes_client_osn (int values, ENCRYPTO::
     auto recvChl_bcorr = ep1.addChannel(name, name);
   
 
-    std::vector<osuCrypto::block> bit_vec(bit_correction.size());
-    recvChl_bcorr.recv(bit_vec.data(), bit_vec.size());
-    uint64_t temp_arr[2];
+    //std::vector<osuCrypto::block> bit_vec(bit_correction.size());
+    recvChl_bcorr.recv(bit_correction);
+    /*uint64_t temp_arr[2];
     for (int i=0; i < bit_vec.size(); ++i) {
       memcpy(temp_arr, &bit_vec[i], sizeof(temp_arr)); 
       bit_correction[i] = temp_arr[0];
-    }
+    }*/
     //std::cout << "bit correction " << bit_correction << std::endl;
     recvChl_bcorr.close();
     //std::cout<<"\n received bit vector: "<<bit_correction;
