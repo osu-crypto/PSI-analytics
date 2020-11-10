@@ -198,7 +198,7 @@ std::vector<std::vector<std::uint64_t>> ot_sender(
 
 void ot_send(std::vector<std::vector<osuCrypto::block>> &messages, ENCRYPTO::PsiAnalyticsContext &context)  
 {
-    std::cout<<"\n OT sender!! \n";
+    //std::cout<<"\n OT sender!! \n";
     osuCrypto::IOService ios;
     std::string name = "n";
     osuCrypto::Session ep(ios, context.address, context.port + 1, osuCrypto::SessionMode::Client,
@@ -252,7 +252,7 @@ void ot_send(std::vector<std::vector<osuCrypto::block>> &messages, ENCRYPTO::Psi
 void ot_recv(osuCrypto::BitVector &choices, std::vector<osuCrypto::block> &recvMsg, ENCRYPTO::PsiAnalyticsContext &context) 
 
 {
-  std::cout<<"\n Ot receiver!!\n";
+  //std::cout<<"\n Ot receiver!!\n";
   std::string name = "n";
   osuCrypto::IOService ios;
   osuCrypto::Session ep(ios, context.address, context.port + 1, osuCrypto::SessionMode::Server,
@@ -306,7 +306,7 @@ void ot_recv(osuCrypto::BitVector &choices, std::vector<osuCrypto::block> &recvM
 //   std::vector<std::array<osuCrypto::block, 2>> sendMsg
 void rand_ot_send(std::vector<std::array<osuCrypto::block,2>> &sendMsg, ENCRYPTO::PsiAnalyticsContext &context)  
 {
-    std::cout<<"\n OT sender!! \n";
+    //std::cout<<"\n OT sender!! \n";
     osuCrypto::IOService ios;
     std::string name = "n";
     osuCrypto::Session ep(ios, context.address, context.port + 1, osuCrypto::SessionMode::Client,
@@ -328,7 +328,7 @@ void rand_ot_send(std::vector<std::array<osuCrypto::block,2>> &sendMsg, ENCRYPTO
 
 void rand_ot_recv(osuCrypto::BitVector &choices, std::vector<osuCrypto::block> &recvMsg, ENCRYPTO::PsiAnalyticsContext &context) 
 {
-  std::cout<<"\n Ot receiver!!\n";
+  //std::cout<<"\n Ot receiver!!\n";
   std::string name = "n";
   osuCrypto::IOService ios;
   osuCrypto::Session ep(ios, context.address, context.port + 1, osuCrypto::SessionMode::Server,
@@ -359,7 +359,7 @@ void rand_ot_recv(osuCrypto::BitVector &choices, std::vector<osuCrypto::block> &
 
 void silent_ot_send (std::vector<std::array<osuCrypto::block,2>> &sendMsg, ENCRYPTO::PsiAnalyticsContext &context) {
 
-    std::cout<<"\n Silent OT sender!! \n";
+    //std::cout<<"\n Silent OT sender!! \n";
     osuCrypto::IOService ios;
     std::string name = "n";
     osuCrypto::Session ep(ios, context.address, context.port + 11, osuCrypto::SessionMode::Client,
@@ -379,7 +379,7 @@ void silent_ot_send (std::vector<std::array<osuCrypto::block,2>> &sendMsg, ENCRY
 }
 
 void silent_ot_recv (osuCrypto::BitVector &choices, std::vector<osuCrypto::block> &recvMsg, ENCRYPTO::PsiAnalyticsContext &context) {
-  std::cout<<"\n Silent OT receiver!!\n";
+  //std::cout<<"\n Silent OT receiver!!\n";
   std::string name = "n";
   osuCrypto::IOService ios;
   osuCrypto::Session ep(ios, context.address, context.port + 11, osuCrypto::SessionMode::Server,
