@@ -81,6 +81,9 @@ uint64_t run_psi_analytics(const std::vector<std::uint64_t> &inputs, PsiAnalytic
     //------------(a) osn pre-process---------------------
     const auto offline_osn_start = std::chrono::system_clock::now();
     std::vector<int> dest(values);
+    int N = int(ceil(log2(values)));
+    int levels = 2*N-1;
+    initialize(values, levels);
     std::vector<osuCrypto::block> ot_output = gen_benes_server_osn(values, context, dest);
     const auto offline_osn_finish = std::chrono::system_clock::now();
     diff = offline_osn_finish - offline_osn_start;
@@ -121,8 +124,6 @@ uint64_t run_psi_analytics(const std::vector<std::uint64_t> &inputs, PsiAnalytic
     std::vector<uint64_t> input_vec(values);
     recvChl.recv(input_vec.data(), input_vec.size());
     // preparing OT outputs
-    int N = int(ceil(log2(values)));
-    int levels = 2*N-1;
     std::vector<std::vector<osuCrypto::block>> matrix_ot_output(levels, std::vector<osuCrypto::block>(values));
     int ctr = 0;
     for (int i=0; i < levels; ++ i) {

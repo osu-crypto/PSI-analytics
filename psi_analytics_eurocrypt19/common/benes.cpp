@@ -9,20 +9,20 @@ using namespace std;
 
 #include <cryptoTools/Common/BitVector.h>
 
-const int max_dim = 21;
+std::vector<int> perm;
+std::vector<int> inv_perm;
+std::vector<std::vector<int>> switched;
+//std::vector<char> path;  
+const int benes_size = 1.27*(1 << 20);
+static char path[benes_size];
 
-static int perm[1 << max_dim];
-//static std::vector<char> perm(1 << max_dim);
-
-static int inv_perm[1 << max_dim];
-//static std::vector<char> inv_perm(1 << max_dim);
-
-
-static char switched[2 * max_dim - 1][1 << (max_dim - 1)];
-//static std::vector<std::vector<char>> switched(2 * max_dim - 1, std::vector<char>(1 << max_dim));
-
-
-static char path[1 << max_dim];    
+void initialize(int values, int levels) {
+  perm.resize(values);
+  inv_perm.resize(values);
+  switched.resize(levels);
+  for (int i= 0; i < levels; ++i)
+    switched[i].resize(values/2);
+}  
 
 
 osuCrypto::BitVector return_switches(int N) {
