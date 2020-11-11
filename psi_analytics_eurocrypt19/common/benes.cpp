@@ -13,14 +13,11 @@ const int max_dim = 20;
 const int benes_size = 1.27*(1 << max_dim);
 
 static int perm[benes_size];
-//static std::vector<char> perm(1 << max_dim);
 
 static int inv_perm[benes_size];
-//static std::vector<char> inv_perm(1 << max_dim);
 
 
 static char switched[2 * (max_dim+1) - 1][benes_size];
-//static std::vector<std::vector<char>> switched(2 * max_dim - 1, std::vector<char>(1 << max_dim));
 
 
 static char path[benes_size];    
