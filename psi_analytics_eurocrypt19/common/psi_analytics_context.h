@@ -67,6 +67,8 @@ struct PsiAnalyticsContext {
     double psty;
     double onosn;
     double kkrt;
+    double two_oprf;
+    double final_ot;
     double total; 
   } timings;
 };

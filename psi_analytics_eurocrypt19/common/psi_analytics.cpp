@@ -105,6 +105,8 @@ uint64_t run_psi_analytics(const std::vector<std::uint64_t> &inputs, PsiAnalytic
 
     //------------ (b) circuit-psi preprocessing------------
     const auto psty_start = std::chrono::system_clock::now();
+    diff = psty_start - offline_osn_finish;
+    context.timings.two_oprf = diff.count();
 
     std::vector<uint64_t> cuckoo_table_v;
     bins = OpprgPsiClient(inputs2, cuckoo_table_v, context); 
@@ -162,7 +164,7 @@ uint64_t run_psi_analytics(const std::vector<std::uint64_t> &inputs, PsiAnalytic
 
     if (context.analytics_type == ENCRYPTO::PsiAnalyticsContext::UNION || context.analytics_type == ENCRYPTO::PsiAnalyticsContext::PID) // TO BE MOVED! - 1
     {
-      std::cout<<"Computing Set Union: "<<std::endl;
+      //std::cout<<"Computing Set Union: "<<std::endl;
       std::vector<uint64_t> inputs_copy(inputs2.size());
       
 
@@ -178,7 +180,7 @@ uint64_t run_psi_analytics(const std::vector<std::uint64_t> &inputs, PsiAnalytic
       }
       const auto end_s = std::chrono::system_clock::now();
       diff = end_s - start_s;
-      std::cout<<"\n binary search time "<<diff.count()<<std::endl;
+      //std::cout<<"\n binary search time "<<diff.count()<<std::endl;
 
 
       std::vector<uint64_t> permuted_table(cuckoo_table_v.size());
@@ -195,12 +197,12 @@ uint64_t run_psi_analytics(const std::vector<std::uint64_t> &inputs, PsiAnalytic
       ot_send(messages, context); 
       const auto psu_finish = std::chrono::system_clock::now();
       diff = psu_finish - kkrt_finish;
-      std::cout<<"\n final OT step: "<<diff.count();
+      context.timings.final_ot = diff.count();
     }
 
     if (context.analytics_type == ENCRYPTO::PsiAnalyticsContext::SUM) 
     {
-      std::cout<<"Computing Sum: "<<std::endl;
+      //std::cout<<"Computing Sum: "<<std::endl;
       std::vector<uint64_t> inputs_copy(inputs2.size());
       
       std::vector<std::pair<uint64_t, uint64_t>> target;
@@ -237,7 +239,7 @@ uint64_t run_psi_analytics(const std::vector<std::uint64_t> &inputs, PsiAnalytic
       ot_send(messages, context); 
       const auto psu_finish = std::chrono::system_clock::now();
       diff = psu_finish - kkrt_finish;
-      std::cout<<"\n final OT step: "<<diff.count();
+      context.timings.final_ot = diff.count();
     }
 
 
@@ -267,6 +269,9 @@ uint64_t run_psi_analytics(const std::vector<std::uint64_t> &inputs, PsiAnalytic
     
     //------------ (b) circuit-psi preprocessing------------
     const auto circuit_psi_start = std::chrono::system_clock::now();
+    diff = circuit_psi_start - offline_osn_end;
+    context.timings.two_oprf = diff.count();
+
     bins = OpprgPsiServer(inputs2, context); 
     const auto circuit_psi_end = std::chrono::system_clock::now();
     diff = circuit_psi_end - offline_osn_end;
@@ -333,7 +338,7 @@ uint64_t run_psi_analytics(const std::vector<std::uint64_t> &inputs, PsiAnalytic
 
       const auto psu_end = std::chrono::system_clock::now();
       diff = psu_end - kkrt_end;
-      std::cout<<"\n final ot step: "<<diff.count();
+      context.timings.final_ot = diff.count();
 
     }
 
@@ -352,9 +357,7 @@ uint64_t run_psi_analytics(const std::vector<std::uint64_t> &inputs, PsiAnalytic
 
       const auto psu_end = std::chrono::system_clock::now();
       diff = psu_end - kkrt_end;
-      std::cout<<"\n final ot step: "<<diff.count();
-
-      std::cout<<"\n output  "<<output;
+      context.timings.final_ot = diff.count();
 
     }
 
@@ -1147,11 +1150,15 @@ std::size_t PlainIntersectionSize(std::vector<std::uint64_t> v1, std::vector<std
 }
 
 void PrintTimings(const PsiAnalyticsContext &context) {
-  std::cout << "\nTime for offline OSN " << context.timings.offosn << " ms\n";
+  if (context.analytics_type == ENCRYPTO::PsiAnalyticsContext::PID)
+      std::cout << "\nTime for two batched OPRF calls " << context.timings.two_oprf << " ms\n";
+  std::cout << "Time for offline OSN " << context.timings.offosn << " ms\n";
   std::cout << "Time for PSTY preprocess " << context.timings.psty << " ms\n";
   std::cout << "Time for online OSN " << context.timings.onosn << " ms\n";
   std::cout << "Time for kkrt "
             << context.timings.kkrt << " ms\n";
+  if (context.analytics_type == ENCRYPTO::PsiAnalyticsContext::PID || context.analytics_type == ENCRYPTO::PsiAnalyticsContext::UNION || context.analytics_type == ENCRYPTO::PsiAnalyticsContext::SUM)
+      std::cout << "Time for last OT step " << context.timings.final_ot << " ms\n";
 
   std::cout << "Total runtime: " << context.timings.total << "ms\n";
 
