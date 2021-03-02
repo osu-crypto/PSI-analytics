@@ -1,7 +1,7 @@
 # Private Set Operations from Oblivious Switching [![Build Status](https://travis-ci.org/encryptogroup/OPPRF-PSI.svg?branch=master)](https://travis-ci.org/encryptogroup/OPPRF-PSI)
 
 An implementation of the private set intersection and related protocols from oblivious switching, which will be presented at 
-PKC'21 \[(pdf)(https://eprint.iacr.org/2021/243.pdf)\].
+PKC'21 (https://eprint.iacr.org/2021/243.pdf).
 
 
 ## Required packages:
