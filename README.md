@@ -1,9 +1,8 @@
-# OPPRF-PSI [![Build Status](https://travis-ci.org/encryptogroup/OPPRF-PSI.svg?branch=master)](https://travis-ci.org/encryptogroup/OPPRF-PSI)
+# Private Set Operations from Oblivious Switching [![Build Status](https://travis-ci.org/encryptogroup/OPPRF-PSI.svg?branch=master)](https://travis-ci.org/encryptogroup/OPPRF-PSI)
 
-An implementation of the first cirucit-based private set 
-intersection protocol with linear communication complexity, which was presented at 
-EUROCRYPT'19 \[[Pinkas-Schneider-Tkachenko-Yanai'19](https://ia.cr/2019/241)\].
-Please note that this is not the same code that was benchmarked in the paper but a re-implementation.
+An implementation of the private set intersection and related protocols from oblivious switching, which will be presented at 
+PKC'21 \[(pdf)(https://eprint.iacr.org/2021/243.pdf)\].
+
 
 ## Required packages:
  - g++ (vection >=8) 
