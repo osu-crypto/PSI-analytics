@@ -1,7 +1,6 @@
 # Private Set Operations from Oblivious Switching [![Build Status](https://travis-ci.org/encryptogroup/OPPRF-PSI.svg?branch=master)](https://travis-ci.org/encryptogroup/OPPRF-PSI)
 
-An implementation of the private set intersection and related protocols from oblivious switching, which will be presented at 
-PKC'21 (https://eprint.iacr.org/2021/243.pdf).
+An implementation of the protocols presented in the paper "Private Set Operations from Oblivious Switching" accepted at PKC'21 (https://eprint.iacr.org/2021/243.pdf). We present a circuit-PSI protocols to compute on the intersection to learn functionalities like cardinality, cardinality-sum, any function 'g' while leaking the intersection. This framework also allows us to learn the plain intersection and union of the sets. Lastly, we show how to compute the Private-ID functionality using our union protocol, making it the first Private-ID instantiated using symmetric-key operations. 
 
 
 ## Required packages:
